@@ -21,12 +21,14 @@
 #define SCLK 13
 #define FAULT 18
 
+#define joystick 9
+
 #define EN_GATE 17
 
 //make sure to define the prototype first and include the libs
 char *binaryToHex(char *binaryString);
 
-//this is the function
+// Changing Binary to Hex
 char *binaryToHex(char *binaryString) {
   //converts the binary string into a long of base 2
   int binaryVal = (int)strtol(binaryString, NULL, 2);
@@ -73,7 +75,8 @@ void setup() {
 }
 
 void loop() {
-  
+  // Reading PWM Value
+  analogRead(joystick);
 
   //Writing new value to the register
   digitalWrite(SS, LOW);
@@ -81,7 +84,7 @@ void loop() {
   digitalWrite(SS, HIGH);
 
   //Reading the new register value
-  received =  SPI.transfer(0x02);
+  int received =  SPI.transfer(0x02);
   Serial.print("New Register 0x02 Value: ");
   Serial.println(received, HEX);
 
@@ -102,6 +105,8 @@ void loop() {
     //Phase C
     digitalWrite(INLC, HIGH);
     digitalWrite(INLC, LOW);
+
+    delay(analogRead(joystick));
   }
   else if(digitalRead(HALLA) == LOW && digitalRead(HALLB) == HIGH && digitalRead(HALLC) == LOW) {
     //Phase A
@@ -115,6 +120,8 @@ void loop() {
     //Phase C
     digitalWrite(INLC, LOW);
     digitalWrite(INLC, LOW);
+
+    delay(analogRead(joystick));
   }
   else if(digitalRead(HALLA) == LOW && digitalRead(HALLB) == HIGH && digitalRead(HALLC) == HIGH) {
     //Phase A
@@ -128,6 +135,8 @@ void loop() {
     //Phase C
     digitalWrite(INLC, HIGH);
     digitalWrite(INLC, HIGH);
+
+    delay(analogRead(joystick));
   }
   else if(digitalRead(HALLA) == LOW && digitalRead(HALLB) == LOW && digitalRead(HALLC) == HIGH) {
     //Phase A
@@ -141,6 +150,8 @@ void loop() {
     //Phase C
     digitalWrite(INLC, HIGH);
     digitalWrite(INLC, HIGH);
+
+    delay(analogRead(joystick));
   }
   else if(digitalRead(HALLA) == HIGH && digitalRead(HALLB) == LOW && digitalRead(HALLC) == HIGH) {
     //Phase A
@@ -154,6 +165,8 @@ void loop() {
     //Phase C
     digitalWrite(INLC, LOW);
     digitalWrite(INLC, LOW);
+
+    delay(analogRead(joystick));
   }
   else if(digitalRead(HALLA) == HIGH && digitalRead(HALLB) == LOW && digitalRead(HALLC) == LOW) {
     //Phase A
@@ -167,6 +180,8 @@ void loop() {
     //Phase C
     digitalWrite(INLC, HIGH);
     digitalWrite(INLC, LOW);
+
+    delay(analogRead(joystick));
   }
 
 }
