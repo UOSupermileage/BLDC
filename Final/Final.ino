@@ -39,19 +39,6 @@ char *binaryToHex(char *binaryString) {
   return hexString;
 }
 
-//this is the function
-char *hexToBinary(char *hexByte) {
-  //converts the Hex Byte into a long of base 2
-  int hexVal = (int)strtol(hexByte, NULL, 2);
-  char tmpHexString[16];
-  //converts the hex into long
-  sprintf(tmpHexString, "%x", hexVal);
-  //allocates memory outside of the function
-  char *binaryString = (char*)malloc(16);
-  strcpy(binaryString, tmpHexString);
-  return binaryString;
-}
-
 void setup() {
   pinMode(INHA, OUTPUT);
   pinMode(INLA, OUTPUT);
@@ -86,16 +73,6 @@ void setup() {
 }
 
 void loop() {
-
-  //Read the register value
-  byte received =  SPI.transfer(0x02);
-  Serial.print("Register 0x02 Value: ");
-  Serial.println(received, HEX);
-
-  //convert to Binary
-  char binary = hexToBinary((char)recieved);
-
-  //Change value of bit
   
 
   //Writing new value to the register
@@ -111,33 +88,85 @@ void loop() {
 
 
 
-
-
-
-
-
-
-
-
  
   // Switching through phases
   if(digitalRead(HALLA) == HIGH && digitalRead(HALLB) == HIGH && digitalRead(HALLC) == LOW) {
-  
+    //Phase A
+    digitalWrite(INLA, LOW);
+    digitalWrite(INHA, LOW);
+    
+    //Phase B
+    digitalWrite(INLB, HIGH);
+    digitalWrite(INLB, HIGH);
+
+    //Phase C
+    digitalWrite(INLC, HIGH);
+    digitalWrite(INLC, LOW);
   }
   else if(digitalRead(HALLA) == LOW && digitalRead(HALLB) == HIGH && digitalRead(HALLC) == LOW) {
-  
+    //Phase A
+    digitalWrite(INLA, HIGH);
+    digitalWrite(INHA, LOW);
+    
+    //Phase B
+    digitalWrite(INLB, HIGH);
+    digitalWrite(INLB, HIGH);
+
+    //Phase C
+    digitalWrite(INLC, LOW);
+    digitalWrite(INLC, LOW);
   }
   else if(digitalRead(HALLA) == LOW && digitalRead(HALLB) == HIGH && digitalRead(HALLC) == HIGH) {
-  
+    //Phase A
+    digitalWrite(INLA, HIGH);
+    digitalWrite(INHA, LOW);
+    
+    //Phase B
+    digitalWrite(INLB, LOW);
+    digitalWrite(INLB, LOW);
+
+    //Phase C
+    digitalWrite(INLC, HIGH);
+    digitalWrite(INLC, HIGH);
   }
   else if(digitalRead(HALLA) == LOW && digitalRead(HALLB) == LOW && digitalRead(HALLC) == HIGH) {
-  
+    //Phase A
+    digitalWrite(INLA, LOW);
+    digitalWrite(INHA, LOW);
+    
+    //Phase B
+    digitalWrite(INLB, HIGH);
+    digitalWrite(INLB, LOW);
+
+    //Phase C
+    digitalWrite(INLC, HIGH);
+    digitalWrite(INLC, HIGH);
   }
   else if(digitalRead(HALLA) == HIGH && digitalRead(HALLB) == LOW && digitalRead(HALLC) == HIGH) {
-  
+    //Phase A
+    digitalWrite(INLA, HIGH);
+    digitalWrite(INHA, HIGH);
+
+    //Phase B
+    digitalWrite(INLB, HIGH);
+    digitalWrite(INLB, LOW);
+
+    //Phase C
+    digitalWrite(INLC, LOW);
+    digitalWrite(INLC, LOW);
   }
   else if(digitalRead(HALLA) == HIGH && digitalRead(HALLB) == LOW && digitalRead(HALLC) == LOW) {
-  
+    //Phase A
+    digitalWrite(INLA, HIGH);
+    digitalWrite(INLA, HIGH);
+
+    //Phase B
+    digitalWrite(INLB, LOW);
+    digitalWrite(INLB, LOW);
+
+    //Phase C
+    digitalWrite(INLC, HIGH);
+    digitalWrite(INLC, LOW);
   }
 
 }
