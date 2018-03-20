@@ -28,6 +28,11 @@
 #define thrMax 1023
 #define minCoast //Throtle value at which to enter coast mode this is out of 255
 
+//Function Declearations 
+function void windingHIGH(int phase, int PWM); //For the three phase functions phase A is 1, B is 2, C is 3
+function void windingLOW(int phase);
+function void windingHIZ(int phase);
+
 
 //make sure to define the prototype first and include the libs
 char *binaryToHex(char *binaryString);
@@ -210,3 +215,46 @@ void loop() {
   }
 
 }
+
+//Phase Functions it is again noted that For the three phase functions phase A is 1, B is 2, C is 3
+// All of this information can be found in the datasheet
+function void windingHIGH(int phase, int PWM){
+	switch(phase){
+		case 1 :
+			digitalWrite(INLA, HIGH);
+			analogWrite(INHA, PWM);
+		case 2 :
+			digitalWrite(INLB, HIGH);
+			analogWrite(INHB, PWM);
+		case 3 :
+			digitalWrite(INLC, HIGH);
+			analogWrite(INHC, PWM);
+	}
+}
+function void windingLOW(int phase){
+	switch(phase){
+		case 1 :
+			digitalWrite(INLA, HIGH);
+			analogWrite(INHA, PWM);
+		case 2 :
+			digitalWrite(INLB, HIGH);
+			analogWrite(INHB, PWM);
+		case 3 :
+			digitalWrite(INLC, HIGH);
+			analogWrite(INHC, PWM);
+	}
+}
+function void windingHIZ(int phase){
+	switch(phase){
+		case 1 :
+			digitalWrite(INLA, LOW);
+			digitalWrite(INHA, LOW);
+		case 2 :
+			digitalWrite(INLB, LOW);
+			analogWrite(INHB, LOW);
+		case 3 :
+			digitalWrite(INLC, LOW);
+			digitalWrite(INHC, LOW);
+	}
+}
+
