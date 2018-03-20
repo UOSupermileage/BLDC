@@ -24,6 +24,10 @@
 #define joystick 9
 
 #define EN_GATE 17
+//Defines below deal with PWM Generation
+#define thrMax 1023
+#define minCoast //Throtle value at which to enter coast mode this is out of 255
+
 
 //make sure to define the prototype first and include the libs
 char *binaryToHex(char *binaryString);
@@ -75,9 +79,30 @@ void setup() {
 }
 
 void loop() {
-  // Reading PWM Value
-  analogRead(joystick);
-
+  /* -OVER VIEW OF MAIN LOOP-
+	1. Check for any fualt conditions on the chip the error report pin
+	2a. IF there is an error we need to read which one and handle it
+	2b. If no error then we are good to go ahead
+	3. Read the value of the throttle
+	4a.If less then coast cutoff then check if the motor is in coast settings, if it is do nothing, else we need to put 
+	it into coast mode
+	4b. If more then set the PWM stregth to that, and check if the motor is in coast. If not then start the algorithim,
+		if it is take it out of that state and then begin 
+  
+	Note about the algorithim -> This code is going to run a hell of a lot faster then the motor, we should check if
+								motor has turned to a new phase before rewritting the output values to save both headaches
+								and improve the general quality and efficency of the code. 
+  */
+  
+  
+  
+  
+  //Part 3 of the code
+  int throttle = analogRead(joystick);
+  map(throttle, 0, thrMax, 0, 255) //Need it in a range that analog write can understand 
+  
+  
+  
   //Writing new value to the register
   digitalWrite(SS, LOW);
   SPI.transfer(0x02);
