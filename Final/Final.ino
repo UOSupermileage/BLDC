@@ -94,9 +94,6 @@ void loop() {
 	4b. If more then set the PWM stregth to that, and check if the motor is in coast. If not then start the algorithim,
 		if it is take it out of that state and then begin 
   
-	Note about the algorithim -> This code is going to run a hell of a lot faster then the motor, we should check if
-								motor has turned to a new phase before rewritting the output values to save both headaches
-								and improve the general quality and efficency of the code. 
   */
   
   
@@ -105,8 +102,47 @@ void loop() {
   //Part 3 of the code
   int throttle = analogRead(joystick);
   map(throttle, 0, thrMax, 0, 255) //Need it in a range that analog write can understand 
+  //Part 4 Begins!
+  //The values of the sensors are read here to make it easier to access by other parts of the loop
+  int hallA = digitalRead(HALLA); 
+  int hallB = digitalRead(HALLB); //Get all three of the values 
+  int hallC = digitalRead(HALLC);
   
-  
+  if(throttle<=minCoast){ //Check to see if we need to coast to save power
+	  //Need to enter coast mode in here
+  }
+  else{ //IF were not coasting were going!!
+	if(hallA && hallB && !hallC ){ //Row 1 of Table
+		windingHIZ(1);
+		windingLOW(3);
+		windingHIGH(2, throttle);
+	}
+	else if(!hallA && hallB && !hallC){ //Row 2 of table
+		windingLOW(1); //The order that windings are changed is important. There always need to be a path for the motor to spin inbetween switching 
+		windingHIZ(3);
+		windingHIGH(2, throttle);
+	}
+	else if(!hallA && hallB && hallC ){ //Row 3 of Table
+		windingLOW(1);
+		windingHIZ(2);
+		windingHIGH(3, throttle);
+	}
+	else if(!hallA && !hallB && hallC){ //Row 4 of Table
+		windingLOW(2);
+		windingHIZ(1);
+		windingHIGH(3, throttle);
+	}
+	else if(hallA && !hallB && hallC){ //Row 5 of Table
+		windingLOW(2);
+		windingHIZ(3);
+		windingHIGH(1, throttle);
+	}
+	else if(hallA && !hallB && !hallC){ //Row 6 of Table
+		windingLOW(3);
+		windingHIZ(2);
+		windingHIGH(1, throttle);
+	}
+  }
   
   //Writing new value to the register
   digitalWrite(SS, LOW);
@@ -119,100 +155,7 @@ void loop() {
   Serial.println(received, HEX);
 
 
-
-
  
-  // Switching through phases
-  if(digitalRead(HALLA) == HIGH && digitalRead(HALLB) == HIGH && digitalRead(HALLC) == LOW) {
-    //Phase A
-    digitalWrite(INLA, LOW);
-    digitalWrite(INHA, LOW);
-    
-    //Phase B
-    digitalWrite(INLB, HIGH);
-    digitalWrite(INLB, HIGH);
-
-    //Phase C
-    digitalWrite(INLC, HIGH);
-    digitalWrite(INLC, LOW);
-
-    delay(analogRead(joystick));
-  }
-  else if(digitalRead(HALLA) == LOW && digitalRead(HALLB) == HIGH && digitalRead(HALLC) == LOW) {
-    //Phase A
-    digitalWrite(INLA, HIGH);
-    digitalWrite(INHA, LOW);
-    
-    //Phase B
-    digitalWrite(INLB, HIGH);
-    digitalWrite(INLB, HIGH);
-
-    //Phase C
-    digitalWrite(INLC, LOW);
-    digitalWrite(INLC, LOW);
-
-    delay(analogRead(joystick));
-  }
-  else if(digitalRead(HALLA) == LOW && digitalRead(HALLB) == HIGH && digitalRead(HALLC) == HIGH) {
-    //Phase A
-    digitalWrite(INLA, HIGH);
-    digitalWrite(INHA, LOW);
-    
-    //Phase B
-    digitalWrite(INLB, LOW);
-    digitalWrite(INLB, LOW);
-
-    //Phase C
-    digitalWrite(INLC, HIGH);
-    digitalWrite(INLC, HIGH);
-
-    delay(analogRead(joystick));
-  }
-  else if(digitalRead(HALLA) == LOW && digitalRead(HALLB) == LOW && digitalRead(HALLC) == HIGH) {
-    //Phase A
-    digitalWrite(INLA, LOW);
-    digitalWrite(INHA, LOW);
-    
-    //Phase B
-    digitalWrite(INLB, HIGH);
-    digitalWrite(INLB, LOW);
-
-    //Phase C
-    digitalWrite(INLC, HIGH);
-    digitalWrite(INLC, HIGH);
-
-    delay(analogRead(joystick));
-  }
-  else if(digitalRead(HALLA) == HIGH && digitalRead(HALLB) == LOW && digitalRead(HALLC) == HIGH) {
-    //Phase A
-    digitalWrite(INLA, HIGH);
-    digitalWrite(INHA, HIGH);
-
-    //Phase B
-    digitalWrite(INLB, HIGH);
-    digitalWrite(INLB, LOW);
-
-    //Phase C
-    digitalWrite(INLC, LOW);
-    digitalWrite(INLC, LOW);
-
-    delay(analogRead(joystick));
-  }
-  else if(digitalRead(HALLA) == HIGH && digitalRead(HALLB) == LOW && digitalRead(HALLC) == LOW) {
-    //Phase A
-    digitalWrite(INLA, HIGH);
-    digitalWrite(INLA, HIGH);
-
-    //Phase B
-    digitalWrite(INLB, LOW);
-    digitalWrite(INLB, LOW);
-
-    //Phase C
-    digitalWrite(INLC, HIGH);
-    digitalWrite(INLC, LOW);
-
-    delay(analogRead(joystick));
-  }
 
 }
 
