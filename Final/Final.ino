@@ -29,51 +29,37 @@
 #define minCoast //Throtle value at which to enter coast mode this is out of 255
 
 //Function Declearations 
-function void windingHIGH(int phase, int PWM); //For the three phase functions phase A is 1, B is 2, C is 3
-function void windingLOW(int phase);
-function void windingHIZ(int phase);
+void windingHIGH(int phase, int PWM); //For the three phase functions phase A is 1, B is 2, C is 3
+void windingLOW(int phase); 
+void windingHIZ(int phase);
 
-
-//make sure to define the prototype first and include the libs
-char *binaryToHex(char *binaryString);
-
-// Changing Binary to Hex
-char *binaryToHex(char *binaryString) {
-  //converts the binary string into a long of base 2
-  int binaryVal = (int)strtol(binaryString, NULL, 2);
-  char tmpHexString[5];
-  //converts the long into hex
-  sprintf(tmpHexString, "%x", binaryVal);
-  //allocates memory outside of the function
-  char *hexString = (char*)malloc(5);
-  strcpy(hexString, tmpHexString);
-  return hexString;
-}
+//These are the defualt values for all of the registers
+//DO NOT CHANGE THESE REGISTERS UNLESS YOU HAVE THE DATASHEET INFRONT OF YOU
+//first bit is r/w, next 4 are the adress, MSB TO LSB 
+char CNTRLREG[16]={1,0,0,1,0,0,0,0,1,0,1,0,0,0,0,0}; //Control register of the driver, defualt is set to write
+char GATEHCTRLREG[16]={1,0,0,1,1,0,1,1,1,1,1,1,1,1,1,1}; //This register controls the currents used to turn the  highmosfets on and off
+char GATELCTRLREG[16]={1,0,1,0,0,1,1,1,1,1,1,1,1,1,1,1}; //This register controls the currents used to turn the low mosfets on and off
+char OCPCTRLREG[16]={1,0,1,0,1,0,0,1,0,1,0,1,1,0,0,1}; //This register controls the Over current protection stuff (DEAD TIME IS ALSO IN HERE) 
+char CSACTRLREG[16]={1,0,1,1,0,0,1,0,1,0,0,0,0,0,1,1};//This is the current sense amplifier Stuff
 
 void setup() {
-  pinMode(INHA, OUTPUT);
+  //This is the setup for the all of the pins
+  pinMode(INHA, OUTPUT);//Logic inputs for the driver chip
   pinMode(INLA, OUTPUT);
   pinMode(INHB, OUTPUT);
   pinMode(INLB, OUTPUT);
   pinMode(INHC, OUTPUT);
   pinMode(INLC, OUTPUT);
 
-  pinMode(HALLA, INPUT);
+  pinMode(HALLA, INPUT);//Pinmode setups for Halls
   pinMode(HALLB, INPUT);
   pinMode(HALLC, INPUT);
 
-  pinMode(SDI, INPUT);
+  pinMode(SDI, INPUT);//Pins for SPI
   pinMode(SDO, OUTPUT);
   pinMode(SCS, INPUT);
   pinMode(SCLK, INPUT);
   pinMode(FAULT, OUTPUT);
-
-  
-
-//  digitalWrite(HALLC, LOW);
-
-//  pinMode(dataReadyPin, INPUT);
-//  pinMode(chipSelectPin, OUTPUT);
 
   Serial.begin(9600);
   SPI.begin();
@@ -104,7 +90,7 @@ void loop() {
   
   //Part 3 of the code
   int throttle = analogRead(joystick);
-  map(throttle, 0, thrMax, 0, 255) //Need it in a range that analog write can understand 
+  map(throttle, 0, thrMax, 0, 255); //Need it in a range that analog write can understand 
   
   
   
@@ -218,7 +204,7 @@ void loop() {
 
 //Phase Functions it is again noted that For the three phase functions phase A is 1, B is 2, C is 3
 // All of this information can be found in the datasheet
-function void windingHIGH(int phase, int PWM){
+void windingHIGH(int phase, int PWM){
 	switch(phase){
 		case 1 :
 			digitalWrite(INLA, HIGH);
@@ -231,20 +217,20 @@ function void windingHIGH(int phase, int PWM){
 			analogWrite(INHC, PWM);
 	}
 }
-function void windingLOW(int phase){
+void windingLOW(int phase){
 	switch(phase){
 		case 1 :
 			digitalWrite(INLA, HIGH);
-			analogWrite(INHA, PWM);
+			digitalWrite(INHA, LOW);
 		case 2 :
 			digitalWrite(INLB, HIGH);
-			analogWrite(INHB, PWM);
+			digitalWrite(INHB, LOW);
 		case 3 :
 			digitalWrite(INLC, HIGH);
-			analogWrite(INHC, PWM);
+			digitalWrite(INHC, LOW);
 	}
 }
-function void windingHIZ(int phase){
+void windingHIZ(int phase){
 	switch(phase){
 		case 1 :
 			digitalWrite(INLA, LOW);
