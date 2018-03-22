@@ -2,8 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <bitset.h>
-
+#include <bitset>
 
 #define INHA 10
 #define INLA 8
@@ -123,12 +122,12 @@ void loop() {
 	  digitalWrite(SCS, HIGH);
 	  delay(1);
 	  digitalWrite(SCS, LOW);
-	  rtwoValue=SPI.transfer16(0x8800;//Read command for the second fualt register
+	  rtwoValue=SPI.transfer16(0x8800);//Read command for the second fualt register
 	  digitalWrite(SCS, HIGH);
 	  SPI.endTransaction();
 	  //Convert both into strings so we can look at the individual bit
-	  string regOne=std::bitset<16>(roneValue);
-	  string regTwo=std::bitset<16>(rtwoValue);
+    bitset<16> regOne(roneValue);
+	  char regTwo[16]=std::bitset<16>(rtwoValue);
 	  //Need to look for certain flags and react appropiately
 	  char OvercurrentA;
 	  if(regOne[10]==1 || regOne[11]==1){ //Over current Phase A
