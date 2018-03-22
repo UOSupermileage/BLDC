@@ -46,7 +46,7 @@ char OCPCTRLREG[16]={1,0,1,0,1,0,0,1,0,1,0,1,1,0,0,1}; //This register controls 
 char CSACTRLREG[16]={1,0,1,1,0,0,1,0,1,0,0,0,0,0,1,1};//This is the current sense amplifier Stuff
 
 //Variables for keeping track of settings
-int coasting; //If set to 1 then the motor is currently coasting
+int coasting=0; //If set to 1 then the motor is currently coasting
 
 void setup() {
   //This is the setup for the all of the pins
@@ -110,110 +110,52 @@ void loop() {
   */
   
   
-  
-  
+  //Part 1 &2  
+  if(digitalRead(FAULT)==0){//If this condidtion fails then there is no fualt and we can proceed
+	  //Code here needs to read in the fualt register and figure out what is happening
+	  
+  }
   //Part 3 of the code
   int throttle = analogRead(joystick);
   map(throttle, 0, thrMax, 0, 255); //Need it in a range that analog write can understand 
 
   //Part 4
-  if(throttle <= minCoast){
+  if(throttle <= minCoast && coasting==0){
 	  coasting=coast(); //If throttle is low engough to coast then coasting begins
   }
   else if(coasting==1){
 	coasting=coast(); //If the motor is coasting   
   }
   // Switching through phases
-  if(digitalRead(HALLA) == HIGH && digitalRead(HALLB) == HIGH && digitalRead(HALLC) == LOW && coasting==0) {
-    //Phase A
-    digitalWrite(INLA, LOW);
-    digitalWrite(INHA, LOW);
-    
-    //Phase B
-    digitalWrite(INLB, HIGH);
-    digitalWrite(INLB, HIGH);
-
-    //Phase C
-    digitalWrite(INLC, HIGH);
-    digitalWrite(INLC, LOW);
-
-    delay(analogRead(joystick));
-  }
-  else if(digitalRead(HALLA) == LOW && digitalRead(HALLB) == HIGH && digitalRead(HALLC) == LOW && coasting==0) {
-    //Phase A
-    digitalWrite(INLA, HIGH);
-    digitalWrite(INHA, LOW);
-    
-    //Phase B
-    digitalWrite(INLB, HIGH);
-    digitalWrite(INLB, HIGH);
-
-    //Phase C
-    digitalWrite(INLC, LOW);
-    digitalWrite(INLC, LOW);
-
-    delay(analogRead(joystick));
-  }
-  else if(digitalRead(HALLA) == LOW && digitalRead(HALLB) == HIGH && digitalRead(HALLC) == HIGH  && coasting==0) {
-    //Phase A
-    digitalWrite(INLA, HIGH);
-    digitalWrite(INHA, LOW);
-    
-    //Phase B
-    digitalWrite(INLB, LOW);
-    digitalWrite(INLB, LOW);
-
-    //Phase C
-    digitalWrite(INLC, HIGH);
-    digitalWrite(INLC, HIGH);
-
-    delay(analogRead(joystick));
-  }
-  else if(digitalRead(HALLA) == LOW && digitalRead(HALLB) == LOW && digitalRead(HALLC) == HIGH && coasting==0) {
-    //Phase A
-    digitalWrite(INLA, LOW);
-    digitalWrite(INHA, LOW);
-    
-    //Phase B
-    digitalWrite(INLB, HIGH);
-    digitalWrite(INLB, LOW);
-
-    //Phase C
-    digitalWrite(INLC, HIGH);
-    digitalWrite(INLC, HIGH);
-
-    delay(analogRead(joystick));
-  }
-  else if(digitalRead(HALLA) == HIGH && digitalRead(HALLB) == LOW && digitalRead(HALLC) == HIGH && coasting==0) {
-    //Phase A
-    digitalWrite(INLA, HIGH);
-    digitalWrite(INHA, HIGH);
-
-    //Phase B
-    digitalWrite(INLB, HIGH);
-    digitalWrite(INLB, LOW);
-
-    //Phase C
-    digitalWrite(INLC, LOW);
-    digitalWrite(INLC, LOW);
-
-    delay(analogRead(joystick));
-  }
-  else if(digitalRead(HALLA) == HIGH && digitalRead(HALLB) == LOW && digitalRead(HALLC) == LOW && coasting==0) {
-    //Phase A
-    digitalWrite(INLA, HIGH);
-    digitalWrite(INLA, HIGH);
-
-    //Phase B
-    digitalWrite(INLB, LOW);
-    digitalWrite(INLB, LOW);
-
-    //Phase C
-    digitalWrite(INLC, HIGH);
-    digitalWrite(INLC, LOW);
-
-    delay(analogRead(joystick));
-  }
+  if(hallA && hallB && !hallC && coasting==0 ){ //Row 1 of Table
+		windingHIZ(1);
+		windingLOW(3);
+		windingHIGH(2, throttle);
+	}
+	else if(!hallA && hallB && !hallC && coasting==0 ){ //Row 2 of table
+		windingLOW(1); //The order that windings are changed is important. There always need to be a path for the motor to spin inbetween switching 
+		windingHIZ(3);
+		windingHIGH(2, throttle);
+	}
+	else if(!hallA && hallB && hallC && coasting==0 ){ //Row 3 of Table
+		windingLOW(1);
+		windingHIZ(2);
+		windingHIGH(3, throttle);
+	}
+	else if(!hallA && !hallB && hallC && coasting==0 ){ //Row 4 of Table
+		windingLOW(2);
+		windingHIZ(1);
+		windingHIGH(3, throttle);
+	}
+	else if(hallA && !hallB && hallC && coasting==0 ){ //Row 5 of Table
+		windingLOW(2);
+		windingHIZ(3);
+		windingHIGH(1, throttle);
+	}
+	else if(hallA && !hallB && !hallC && coasting==0 ){ //Row 6 of Table
+		windingLOW(3);
+		windingHIZ(2);
+		windingHIGH(1, throttle);
 
 }
 
