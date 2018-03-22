@@ -59,14 +59,32 @@ void setup() {
   pinMode(SDO, OUTPUT);
   pinMode(SCS, INPUT);
   pinMode(SCLK, INPUT);
-  pinMode(FAULT, OUTPUT);
+  
+  pinMode(FAULT, INPUT); //This pin handles fualt reporting from the chip
 
-  Serial.begin(9600);
-  SPI.begin();
-  SPI.setDataMode(SPI_MODE1);
-  SPI.setClockDivider(SPI_CLOCK_DIV4);
-  SPI.setBitOrder(MSBFIRST);
-
+  
+  //This stuff below is the setup for the SPI and the initial transfer of defualt register values to the chip
+  SPI.beginTransaction(SPISettings(1400000, MSBFIRST, SPI_MODE1));
+  digitalWrite(SCS, LOW);
+  SPI.transfer16((int)strtol(CNTRLREG, NULL, 2);
+  digitalWrite(SCS, HIGH);
+  delay(1);//The chip needs the NSC delay line to be high for 400ns between words
+  digitalWrite(SCS, LOW);
+  SPI.transfer16((int)strtol(GATEHCTRLREG,NULL, 2);
+  digitalWrite(SCS, HIGH);
+  delay(1);//The chip needs the NSC delay line to be high for 400ns between words
+  digitalWrite(SCS, LOW);
+  SPI.transfer16((int)strtol(GATELCTRLREG,NULL, 2
+  digitalWrite(SCS, HIGH);
+  delay(1);//The chip needs the NSC delay line to be high for 400ns between words
+  digitalWrite(SCS, LOW);
+  SPI.transfer16((int)strtol(OCPCTRLREG,NULL, 2);
+  digitalWrite(SCS, HIGH);
+  delay(1);//The chip needs the NSC delay line to be high for 400ns between words
+  digitalWrite(SCS, LOW);
+  SPI.transfer16((int)strtol(CSACTRLREG,NULL, 2);
+  digitalWrite(SCS, HIGH);
+  SPI.endTransaction();
 }
 
 void loop() {
@@ -243,4 +261,3 @@ void windingHIZ(int phase){
 			digitalWrite(INHC, LOW);
 	}
 }
-
