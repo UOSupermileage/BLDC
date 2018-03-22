@@ -26,12 +26,15 @@
 #define EN_GATE 17
 //Defines below deal with PWM Generation
 #define thrMax 1023
-#define minCoast //Throtle value at which to enter coast mode this is out of 255
+#define minCoast 15 //Throtle value at which to enter coast mode this is out of 255
+
 
 //Function Declearations 
 void windingHIGH(int phase, int PWM); //For the three phase functions phase A is 1, B is 2, C is 3
 void windingLOW(int phase); 
 void windingHIZ(int phase);
+int coast(); //Enables or disables the coast mode of the motor
+void clrFUALT(); //Clears any fualt condidtion on the motor
 
 //These are the defualt values for all of the registers
 //DO NOT CHANGE THESE REGISTERS UNLESS YOU HAVE THE DATASHEET INFRONT OF YOU
@@ -41,6 +44,9 @@ char GATEHCTRLREG[16]={1,0,0,1,1,0,1,1,1,1,1,1,1,1,1,1}; //This register control
 char GATELCTRLREG[16]={1,0,1,0,0,1,1,1,1,1,1,1,1,1,1,1}; //This register controls the currents used to turn the low mosfets on and off
 char OCPCTRLREG[16]={1,0,1,0,1,0,0,1,0,1,0,1,1,0,0,1}; //This register controls the Over current protection stuff (DEAD TIME IS ALSO IN HERE) 
 char CSACTRLREG[16]={1,0,1,1,0,0,1,0,1,0,0,0,0,0,1,1};//This is the current sense amplifier Stuff
+
+//Variables for keeping track of settings
+int coasting; //If set to 1 then the motor is currently coasting
 
 void setup() {
   //This is the setup for the all of the pins
@@ -59,14 +65,32 @@ void setup() {
   pinMode(SDO, OUTPUT);
   pinMode(SCS, INPUT);
   pinMode(SCLK, INPUT);
-  pinMode(FAULT, OUTPUT);
+  
+  pinMode(FAULT, INPUT); //This pin handles fualt reporting from the chip
 
-  Serial.begin(9600);
-  SPI.begin();
-  SPI.setDataMode(SPI_MODE1);
-  SPI.setClockDivider(SPI_CLOCK_DIV4);
-  SPI.setBitOrder(MSBFIRST);
-
+  
+  //This stuff below is the setup for the SPI and the initial transfer of defualt register values to the chip
+  SPI.beginTransaction(SPISettings(1400000, MSBFIRST, SPI_MODE1));
+  digitalWrite(SCS, LOW);
+  SPI.transfer16((int)strtol(CNTRLREG, NULL, 2));
+  digitalWrite(SCS, HIGH);
+  delay(1);//The chip needs the NSC delay line to be high for 400ns between words
+  digitalWrite(SCS, LOW);
+  SPI.transfer16((int)strtol(GATEHCTRLREG,NULL, 2));
+  digitalWrite(SCS, HIGH);
+  delay(1);//The chip needs the NSC delay line to be high for 400ns between words
+  digitalWrite(SCS, LOW);
+  SPI.transfer16((int)strtol(GATELCTRLREG,NULL, 2));
+  digitalWrite(SCS, HIGH);
+  delay(1);//The chip needs the NSC delay line to be high for 400ns between words
+  digitalWrite(SCS, LOW);
+  SPI.transfer16((int)strtol(OCPCTRLREG,NULL, 2));
+  digitalWrite(SCS, HIGH);
+  delay(1);//The chip needs the NSC delay line to be high for 400ns between words
+  digitalWrite(SCS, LOW);
+  SPI.transfer16((int)strtol(CSACTRLREG,NULL, 2));
+  digitalWrite(SCS, HIGH);
+  SPI.endTransaction();
 }
 
 void loop() {
@@ -91,25 +115,16 @@ void loop() {
   //Part 3 of the code
   int throttle = analogRead(joystick);
   map(throttle, 0, thrMax, 0, 255); //Need it in a range that analog write can understand 
-  
-  
-  
-  //Writing new value to the register
-  digitalWrite(SS, LOW);
-  SPI.transfer(0x02);
-  digitalWrite(SS, HIGH);
 
-  //Reading the new register value
-  int received =  SPI.transfer(0x02);
-  Serial.print("New Register 0x02 Value: ");
-  Serial.println(received, HEX);
-
-
-
-
- 
+  //Part 4
+  if(throttle <= minCoast){
+	  coasting=coast(); //If throttle is low engough to coast then coasting begins
+  }
+  else if(coasting==1){
+	coasting=coast(); //If the motor is coasting   
+  }
   // Switching through phases
-  if(digitalRead(HALLA) == HIGH && digitalRead(HALLB) == HIGH && digitalRead(HALLC) == LOW) {
+  if(digitalRead(HALLA) == HIGH && digitalRead(HALLB) == HIGH && digitalRead(HALLC) == LOW && coasting==0) {
     //Phase A
     digitalWrite(INLA, LOW);
     digitalWrite(INHA, LOW);
@@ -124,7 +139,7 @@ void loop() {
 
     delay(analogRead(joystick));
   }
-  else if(digitalRead(HALLA) == LOW && digitalRead(HALLB) == HIGH && digitalRead(HALLC) == LOW) {
+  else if(digitalRead(HALLA) == LOW && digitalRead(HALLB) == HIGH && digitalRead(HALLC) == LOW && coasting==0) {
     //Phase A
     digitalWrite(INLA, HIGH);
     digitalWrite(INHA, LOW);
@@ -139,7 +154,7 @@ void loop() {
 
     delay(analogRead(joystick));
   }
-  else if(digitalRead(HALLA) == LOW && digitalRead(HALLB) == HIGH && digitalRead(HALLC) == HIGH) {
+  else if(digitalRead(HALLA) == LOW && digitalRead(HALLB) == HIGH && digitalRead(HALLC) == HIGH  && coasting==0) {
     //Phase A
     digitalWrite(INLA, HIGH);
     digitalWrite(INHA, LOW);
@@ -154,7 +169,7 @@ void loop() {
 
     delay(analogRead(joystick));
   }
-  else if(digitalRead(HALLA) == LOW && digitalRead(HALLB) == LOW && digitalRead(HALLC) == HIGH) {
+  else if(digitalRead(HALLA) == LOW && digitalRead(HALLB) == LOW && digitalRead(HALLC) == HIGH && coasting==0) {
     //Phase A
     digitalWrite(INLA, LOW);
     digitalWrite(INHA, LOW);
@@ -169,7 +184,7 @@ void loop() {
 
     delay(analogRead(joystick));
   }
-  else if(digitalRead(HALLA) == HIGH && digitalRead(HALLB) == LOW && digitalRead(HALLC) == HIGH) {
+  else if(digitalRead(HALLA) == HIGH && digitalRead(HALLB) == LOW && digitalRead(HALLC) == HIGH && coasting==0) {
     //Phase A
     digitalWrite(INLA, HIGH);
     digitalWrite(INHA, HIGH);
@@ -184,7 +199,7 @@ void loop() {
 
     delay(analogRead(joystick));
   }
-  else if(digitalRead(HALLA) == HIGH && digitalRead(HALLB) == LOW && digitalRead(HALLC) == LOW) {
+  else if(digitalRead(HALLA) == HIGH && digitalRead(HALLB) == LOW && digitalRead(HALLC) == LOW && coasting==0) {
     //Phase A
     digitalWrite(INLA, HIGH);
     digitalWrite(INLA, HIGH);
@@ -244,3 +259,24 @@ void windingHIZ(int phase){
 	}
 }
 
+//Motor State functions
+int coast(){
+	int coastenabled; //Value to store return value to tell caller if coast was enabled or disabled
+  coastenabled=CNTRLREG[14];
+	if(coastenabled==1){//Find the current state of coast and then toggle it to the other
+		CNTRLREG[14]=0;
+		coastenabled=0;
+	}
+	else{
+		CNTRLREG[14]=1;
+		coastenabled=1;
+	}
+	CNTRLREG[14]=1; //Set the register coast setting to be engabled 
+	SPI.beginTransaction(SPISettings(1400000, MSBFIRST, SPI_MODE1));
+	digitalWrite(SCS, LOW);
+	SPI.transfer16((int)strtol(CNTRLREG, NULL, 2));
+	digitalWrite(SCS, HIGH);
+	SPI.endTransaction();
+	delay(1);
+	return coastenabled;
+}
