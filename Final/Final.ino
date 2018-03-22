@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <bitset.h>
 
 
 #define INHA 10
@@ -39,11 +40,11 @@ void clrFUALT(); //Clears any fualt condidtion on the motor
 //These are the defualt values for all of the registers
 //DO NOT CHANGE THESE REGISTERS UNLESS YOU HAVE THE DATASHEET INFRONT OF YOU
 //first bit is r/w, next 4 are the adress, MSB TO LSB 
-char CNTRLREG[16]={1,0,0,1,0,0,0,0,1,0,1,0,0,0,0,0}; //Control register of the driver, defualt is set to write
-char GATEHCTRLREG[16]={1,0,0,1,1,0,1,1,1,1,1,1,1,1,1,1}; //This register controls the currents used to turn the  highmosfets on and off
-char GATELCTRLREG[16]={1,0,1,0,0,1,1,1,1,1,1,1,1,1,1,1}; //This register controls the currents used to turn the low mosfets on and off
-char OCPCTRLREG[16]={1,0,1,0,1,0,0,1,0,1,0,1,1,0,0,1}; //This register controls the Over current protection stuff (DEAD TIME IS ALSO IN HERE) 
-char CSACTRLREG[16]={1,0,1,1,0,0,1,0,1,0,0,0,0,0,1,1};//This is the current sense amplifier Stuff
+char CNTRLREG[16]={0,0,0,1,0,0,0,0,1,0,1,0,0,0,0,0}; //Control register of the driver, defualt is set to write
+char GATEHCTRLREG[16]={0,0,0,1,1,0,1,1,1,1,1,1,1,1,1,1}; //This register controls the currents used to turn the  highmosfets on and off
+char GATELCTRLREG[16]={0,0,1,0,0,1,1,1,1,1,1,1,1,1,1,1}; //This register controls the currents used to turn the low mosfets on and off
+char OCPCTRLREG[16]={0,0,1,0,1,0,0,1,0,1,0,1,1,0,0,1}; //This register controls the Over current protection stuff (DEAD TIME IS ALSO IN HERE) 
+char CSACTRLREG[16]={0,0,1,1,0,0,1,0,1,0,0,0,0,0,1,1};//This is the current sense amplifier Stuff
 
 //Variables for keeping track of settings
 int coasting=0; //If set to 1 then the motor is currently coasting
@@ -113,6 +114,36 @@ void loop() {
   //Part 1 &2  
   if(digitalRead(FAULT)==0){//If this condidtion fails then there is no fualt and we can proceed
 	  //Code here needs to read in the fualt register and figure out what is happening
+	  //First thing is to get the data from the registers
+	  SPI.beginTransaction(SPISettings(1400000, MSBFIRST, SPI_MODE1));
+	  int roneValue; //Value from first register
+	  int rtwoValue; //Value from second register
+	  digitalWrite(SCS, LOW);
+	  roneValue=SPI.transfer16(0x0800);//Read command for the first fualt register
+	  digitalWrite(SCS, HIGH);
+	  delay(1);
+	  digitalWrite(SCS, LOW);
+	  rtwoValue=SPI.transfer16(0x8800;//Read command for the second fualt register
+	  digitalWrite(SCS, HIGH);
+	  SPI.endTransaction();
+	  //Convert both into strings so we can look at the individual bit
+	  string regOne=std::bitset<16>(roneValue);
+	  string regTwo=std::bitset<16>(rtwoValue);
+	  //Need to look for certain flags and react appropiately
+	  char OvercurrentA;
+	  if(regOne[10]==1 || regOne[11]==1){ //Over current Phase A
+		OvercurrentA='1';  
+	  }
+	  char OvercurrentB;
+	  if(regOne[12]==1 || regOne[13]==1){
+		OvercurrentB='1';  
+	  }
+	  char OvercurrentC;
+	  if(regOne[14]==1 || regOne[15]==1){
+		OvercurrentC='1'  
+	  }
+	  char OTW= regTwo[8]; //This is the over tempature warning
+	  char OTSHTDWN = regOne[9]; //This is overtempature shutdown
 	  
   }
   //Part 3 of the code
