@@ -5,25 +5,25 @@
 
 
 #define INHA 10
-#define INLA 8
+#define INLA 9
 #define INHB 6 
 #define INLB 5
 #define INHC 4
 #define INLC 3
 
-#define HALLA 14
-#define HALLB 15
-#define HALLC 16
+#define HALLA 20
+#define HALLB 21
+#define HALLC 22
 
-#define SDI 11
-#define SDO 12
-#define SCS 23
+#define SDI 12
+#define SDO 11
+#define SCS 14
 #define SCLK 13
-#define FAULT 18
+#define FAULT 8
 
-#define joystick 9
+#define joystick 23
 
-#define EN_GATE 17
+#define EN_GATE 7
 //Defines below deal with PWM Generation
 #define thrMax 1023
 #define minCoast 15 //Throtle value at which to enter coast mode this is out of 255
