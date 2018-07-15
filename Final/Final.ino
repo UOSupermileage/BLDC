@@ -111,21 +111,26 @@ void loop() {
   
   
   //Part 1 &2  
-  if(digitalRead(FAULT)==0){//If this condidtion fails then there is no fualt and we can proceed
+  //if(digitalRead(FAULT)==0){//If this condidtion fails then there is no fualt and we can proceed
 	  //Code here needs to read in the fualt register and figure out what is happening
 	  
-  }
+ //}
   //Part 3 of the code
-  int throttle = analogRead(joystick);
-  map(throttle, 0, thrMax, 0, 255); //Need it in a range that analog write can understand 
-
+  //int throttle = analogRead(joystick);
+  //map(throttle, 0, thrMax, 0, 255); //Need it in a range that analog write can understand 
+ //Following line is for testing only and defualt sets the throttle to be at 50%
+  int throttle = 125;
+	
+	
   //Part 4
-  if(throttle <= minCoast && coasting==0){
-	  coasting=coast(); //If throttle is low engough to coast then coasting begins
-  }
-  else if(coasting==1){
-	coasting=coast(); //If the motor is coasting   
-  }
+  //commented out during testing
+  //if(throttle <= minCoast && coasting==0){
+	//  coasting=coast(); //If throttle is low engough to coast then coasting begins
+  //}
+  //else if(coasting==1){
+	//coasting=coast(); //If the motor is coasting   
+  //}
+  
   // Switching through phases
   if(hallA && hallB && !hallC && coasting==0 ){ //Row 1 of Table
 		windingHIZ(1);
