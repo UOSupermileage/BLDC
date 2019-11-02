@@ -238,9 +238,9 @@ void setup() {
   Serial.begin(9600);
 
   analogFrequency(PWM_FREQUENCY);
-  attachInterupt(digitalPinToInterrupt(HALLA), changeS-A, CHANGE);
-  attachInterupt(digitalPinToInterrupt(HALLB), changeS-B, CHANGE);
-  attachInterupt(digitalPinToInterrupt(HALLC), changeS-C, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(HALLA), changeSA, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(HALLB), changeSB, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(HALLC), changeSC, CHANGE);
 
   // SET THE INITIAL STATE OF THE HALL INPUTS
   //Read HALL Values
@@ -289,7 +289,7 @@ void loop() {
 
 } // LOOP END
 
-void changeS-A() {
+void changeSA() {
   if(digitalRead(HALLA) == HIGH) {
     state = state | B100;
   }
@@ -300,7 +300,7 @@ void changeS-A() {
   motorSpin();
 }
 
-void changeS-B() {
+void changeSB() {
   if(digitalRead(HALLB) == HIGH) {
     state = state | B010;
   }
@@ -311,7 +311,7 @@ void changeS-B() {
   motorSpin();
 }
 
-void changeS-C() {
+void changeSC() {
   if(digitalRead(HALLC) == HIGH) {
     state = state | B001;
   }
