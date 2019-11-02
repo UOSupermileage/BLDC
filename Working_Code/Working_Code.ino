@@ -26,7 +26,7 @@
 #define THROTTLE 24
 
 // Constants
-#define PWM_VALUE 100
+#define PWM_VALUE_DEBUG 100 // For button-press debugging.
 #define PWM_FREQUENCY 20000 // 20kHz
 #define DEFAULT_THROTTLE_LOOP_COUNT 1000 // must be smaller than 65,535
 #define MIN_PWM_VALUE 0
@@ -35,7 +35,7 @@
 //Throttle Variables and Pin
 int loopCount = 0; //Variable to store number of loops gone through 
 int loopNum = DEFAULT_THROTTLE_LOOP_COUNT; //Number of loops to trigger a throttle read
-int pwm_value = PWM_VALUE; //Throttle value, always start this off at 0
+int pwm_value = 0; //Throttle value, always start this off at 0
 
 //State Variable Values
 #define zeroDegrees B110 //6
@@ -155,6 +155,8 @@ void setup() {
   pinMode(aPIN, OUTPUT);
 
   pinMode(THROTTLE, INPUT);
+  pinMode(P1_1, INPUT_PULLUP);
+  pinMode(P2_1, INPUT_PULLUP);
 
   state = errorState1;
   old_state = errorState2;
@@ -195,6 +197,15 @@ void loop() {
   }
   if (rHallC == HIGH) {
     state = state | B001;  // set bit 0
+  }
+
+  // Temporary logic using either button on the board to run the motor.
+  if(digitalRead(P1_1) & digitalRead(P2_1)){
+    //If neither button has been pressed, throttle can be set to zero.
+    pwm_value = 0;
+  }else{
+    // If one or the other is pressed, the bitwise AND will be zero, so throttle should be set.
+    pwm_value = PWM_VALUE_DEBUG;
   }
 
 //  if(loopCount >= loopNum){
