@@ -1,4 +1,3 @@
-
 The code for the BLDC Motor Controller.
 
 This brach contains files for:
