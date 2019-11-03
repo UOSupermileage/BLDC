@@ -10,9 +10,9 @@
 #define MOSI 15
 
 // HALL PINS
-#define HALLA 19 // From 10
-#define HALLB 18 // From 9
-#define HALLC 13 // From 31
+#define HALLA 19
+#define HALLB 18
+#define HALLC 13
 
 #define LOWA 39
 #define LOWB 37
@@ -26,7 +26,7 @@
 #define THROTTLE 24
 
 // Constants
-#define PWM_VALUE 100
+#define PWM_VALUE 20
 #define PWM_FREQUENCY 20000 // 20kHz
 #define DEFAULT_THROTTLE_LOOP_COUNT 1000 // must be smaller than 65,535
 #define MIN_PWM_VALUE 0
@@ -35,10 +35,15 @@
 //Throttle Variables and Pin
 int loopCount = 0; //Variable to store number of loops gone through 
 int loopNum = DEFAULT_THROTTLE_LOOP_COUNT; //Number of loops to trigger a throttle read
-int pwm_value = 120; //Throttle value, always start this off at 0
+int pwm_value = 0; //Throttle value, always start this off at 0
 
 int ledstatus = 0;
 int ledtoggle = -1;
+
+// Hall interrupt int
+int halldebug = 0;
+
+int motorsem = 0;
 
 //State Variable Values
 #define zeroDegrees B110 //6
@@ -50,9 +55,9 @@ int ledtoggle = -1;
 #define errorState1 B111
 #define errorState2 B000
 
-byte state = 0;
-byte old_state = state;
-byte expected_next_state = state;
+volatile byte state = 0;
+volatile byte old_state = state;
+volatile byte expected_next_state = state;
 
 int desiredTorque = 0;
 bool new_state_OK = false;
@@ -102,10 +107,15 @@ void controllerSetup(void) {
   SPI.end();
 }
 
+void greenLedOff(){
+  digitalWrite(GREEN_LED, LOW);  
+}
+
 void motorSpin() {
   // Switch-Case Statement follow the REVERSE1 code, (which previously required a push to start spinning the motor clockwise    (Check clockwise_motor brach on GITLAB)
   switch(state) {
     case zeroDegrees: //010
+      greenLedOff();
       //setLow('B');
       digitalWrite(LOWB, HIGH);
       digitalWrite(HIGHB, LOW);    
@@ -119,6 +129,7 @@ void motorSpin() {
     break;
     
     case twentyDegrees: //011
+      greenLedOff();
       //setLow('B');
       digitalWrite(LOWB, HIGH);
       digitalWrite(HIGHB, LOW);    
@@ -132,6 +143,7 @@ void motorSpin() {
     break;
   
     case fortyDegrees: //001
+      greenLedOff();
       //setLow('C');
       digitalWrite(LOWC, HIGH);
       digitalWrite(HIGHC, LOW);    
@@ -145,6 +157,7 @@ void motorSpin() {
     break;
   
     case sixtyDegrees: //101
+      greenLedOff(); 
       //setLow('C');
       digitalWrite(LOWC, HIGH);
       digitalWrite(HIGHC, LOW);    
@@ -158,6 +171,7 @@ void motorSpin() {
     break;
   
     case eightyDegrees: //100
+      greenLedOff();
       //setLow('A');
       digitalWrite(LOWA, HIGH);
       digitalWrite(HIGHA, LOW);
@@ -171,6 +185,7 @@ void motorSpin() {
     break;
 
     case hundredDegrees: //110
+      greenLedOff();
       //setLow('A');
       digitalWrite(LOWA, HIGH);
       digitalWrite(HIGHA, LOW);    
@@ -184,8 +199,9 @@ void motorSpin() {
     break;
   
     default :
-      Serial.println("Error - Set to Coast");
-      Serial.println(state);
+       digitalWrite(GREEN_LED, HIGH);
+//      Serial.println("Error - Set to Coast");
+//      Serial.println(state);
       coast();
       expected_next_state = state;  // assume the same errored state is the most likely one next
     break;
@@ -269,27 +285,45 @@ void setup() {
   // Ensure red LED toggle works correctly
   // for interrupt debugging.
   noInterrupts();
-  toggleLed(4);
+  //toggleLed(4);
   delay(500);
-  toggleLed(5);
+  //toggleLed(5);
   delay(100);
   interrupts();
 
   motorSpin();
+
+  //Serial.println("Setup complete.");
+  //Serial.println("Hall values:"+String(rHallA)+String(rHallB)+String(rHallC));
+//  Serial.printf("Hall values: %i%i%i",rHallA,rHallB,rHallC);
 }
 
 // LOOP CODE
 void loop() {
 
+  toggleLed(ledtoggle+1);
+  delay(100);
+
+
+/*
+ * PUSHBUTTON TO START MOTOR CODE.
+ * VROOM VROOM VROOM VROOM VROOM
+ */
     // Temporary logic using either button on the board to run the motor.
   if (digitalRead(P1_1) & digitalRead(P2_1)) {
     //If neither button has been pressed, throttle can be set to zero.
-    //pwm_value = 0;
-    digitalWrite(GREEN_LED, LOW);
+    pwm_value = 0;
+    motorsem=1;
+    //digitalWrite(GREEN_LED, LOW);
   } else {
     // If one or the other is pressed, the bitwise AND will be zero, so throttle should be set.
-    //pwm_value = PWM_VALUE;
-    digitalWrite(GREEN_LED, HIGH);
+    pwm_value = PWM_VALUE;
+    
+    if(motorsem){
+      motorSpin();
+      motorsem=0;  
+    }
+    //digitalWrite(GREEN_LED, HIGH);
   }
 
 //  // Reading and Updating the Throttle the Throttle
@@ -314,43 +348,54 @@ void loop() {
 //    loopCount++;
 //  }
 
+  //Serial.println(String(++halldebug)+" Hall value: "+String(digitalRead(HALLA))+String(digitalRead(HALLB))+String(digitalRead(HALLC)));
+
 } // LOOP END
 
 void changeSA() {
-  toggleLed(1);
-  if(digitalRead(HALLA) == HIGH) {
-    state = state | B100;
+  //toggleLed(1);
+  if(digitalRead(HALLA) == HIGH && state == B010) {
+    state |= B100;
   }
-  else {
-    state = state & B010;
+  else  if (state == B101){
+    state &= B001;
   }
 
-  motorSpin();
-  //digitalWrite(RED_LED, LOW);
+  doStuff();
 }
 
 void changeSB() {
-  toggleLed(2);
-  if(digitalRead(HALLB) == HIGH) {
-    state = state | B010;
+  //toggleLed(2);
+  if(digitalRead(HALLB) == HIGH && state == B001) {
+    state |= B010;
   }
-  else {
-    state = state & B001;
+  else if (state == B110){
+    state &= B100;
   }
 
-  motorSpin();
+  doStuff();
 }
 
 void changeSC() {
-  toggleLed(3);
-  if(digitalRead(HALLC) == HIGH) {
-    state = state | B001;
+  //toggleLed(3);
+  if(digitalRead(HALLC) == HIGH && state == B100) {
+    state |= B001;
   }
-  else {
-    state = state & B100;
+  else  if (state == B011){
+    state &= B010;
   }
 
+  doStuff();
+}
+
+void doStuff(){
+  digitalWrite(RED_LED, LOW);
+  //Serial.println(String(++halldebug)+" UPDATE TO "+String(digitalRead(HALLA))+String(digitalRead(HALLB))+String(digitalRead(HALLC)));
+
+  //interrupts();
+  //Serial.println(String(++halldebug)+" Hall value: "+String(digitalRead(HALLA))+String(digitalRead(HALLB))+String(digitalRead(HALLC)));
   motorSpin();
+  
 }
 
 /*
