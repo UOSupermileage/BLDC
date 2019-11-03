@@ -10,9 +10,9 @@
 #define MOSI 15
 
 // HALL PINS
-#define HALLA 10
-#define HALLB 9
-#define HALLC 31
+#define HALLA 19
+#define HALLB 18
+#define HALLC 13
 
 #define LOWA 39
 #define LOWB 37

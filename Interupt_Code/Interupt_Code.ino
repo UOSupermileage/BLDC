@@ -10,9 +10,9 @@
 #define MOSI 15
 
 // HALL PINS
-#define HALLA 19
-#define HALLB 18
-#define HALLC 13
+#define HALLA 19 // From 10
+#define HALLB 18 // From 9
+#define HALLC 13 // From 31
 
 #define LOWA 39
 #define LOWB 37
@@ -269,9 +269,10 @@ void setup() {
   // Ensure red LED toggle works correctly
   // for interrupt debugging.
   noInterrupts();
-  toggleLed(-3);
+  toggleLed(4);
   delay(500);
-  toggleLed(-2);
+  toggleLed(5);
+  delay(100);
   interrupts();
 
   motorSpin();
