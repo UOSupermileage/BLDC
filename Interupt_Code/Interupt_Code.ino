@@ -10,9 +10,9 @@
 #define MOSI 15
 
 // HALL PINS
-#define HALLA 10
-#define HALLB 9
-#define HALLC 31
+#define HALLA 19
+#define HALLB 18
+#define HALLC 13
 
 #define LOWA 39
 #define LOWB 37
@@ -21,7 +21,7 @@
 #define HIGHB 38
 #define HIGHC 36
 
-#define testPIN 32
+#define LED RED_LED
 
 #define THROTTLE 24
 
@@ -35,7 +35,10 @@
 //Throttle Variables and Pin
 int loopCount = 0; //Variable to store number of loops gone through 
 int loopNum = DEFAULT_THROTTLE_LOOP_COUNT; //Number of loops to trigger a throttle read
-int pwm_value = PWM_VALUE; //Throttle value, always start this off at 0
+int pwm_value = 120; //Throttle value, always start this off at 0
+
+int ledstatus = 0;
+int ledtoggle = -1;
 
 //State Variable Values
 #define zeroDegrees B110 //6
@@ -230,6 +233,10 @@ void setup() {
   pinMode(HIGHC, OUTPUT);
 
   pinMode(THROTTLE, INPUT);
+  pinMode(RED_LED, OUTPUT);
+  pinMode(P1_1, INPUT_PULLUP);
+  pinMode(P2_1, INPUT_PULLUP);
+  pinMode(GREEN_LED, OUTPUT);
 
   state = errorState1;
   old_state = errorState2;
@@ -240,7 +247,8 @@ void setup() {
   analogFrequency(PWM_FREQUENCY);
   attachInterrupt(digitalPinToInterrupt(HALLA), changeSA, CHANGE);
   attachInterrupt(digitalPinToInterrupt(HALLB), changeSB, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(HALLC), changeSC, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(HALLC), changeSC, CHANGE); 
+  controllerSetup();
 
   // SET THE INITIAL STATE OF THE HALL INPUTS
   //Read HALL Values
@@ -257,39 +265,58 @@ void setup() {
   if (rHallC == HIGH) {
     state = state | B001;  // set bit 0
   }
+
+  // Ensure red LED toggle works correctly
+  // for interrupt debugging.
+  noInterrupts();
+  toggleLed(-3);
+  delay(500);
+  toggleLed(-2);
+  interrupts();
+
   motorSpin();
-  
-  controllerSetup();
 }
 
 // LOOP CODE
 void loop() {
 
-  // Reading and Updating the Throttle the Throttle
-  if(loopCount >= loopNum) {
-    int analogReadValue = analogRead(THROTTLE); // Read the POT Value
-    int mapValue = map(analogReadValue, 1550, 4096, 0, 255); // Map the pot value, assuming that the range is between 1550-4096 (12-bit value) to 0-255
+    // Temporary logic using either button on the board to run the motor.
+  if (digitalRead(P1_1) & digitalRead(P2_1)) {
+    //If neither button has been pressed, throttle can be set to zero.
+    //pwm_value = 0;
+    digitalWrite(GREEN_LED, LOW);
+  } else {
+    // If one or the other is pressed, the bitwise AND will be zero, so throttle should be set.
+    //pwm_value = PWM_VALUE;
+    digitalWrite(GREEN_LED, HIGH);
+  }
 
-    // MIN and MAX Check
-    if (mapValue <= MIN_PWM_VALUE) {
-      mapValue == MIN_PWM_VALUE;
-    }
-    if (mapValue > MAX_PWM_VALUE) {
-      pwm_value = MAX_PWM_VALUE;
-    }
-    else {
-      pwm_value = (mapValue + pwm_value) / 2; // The PWM value keeps increasing at a rate of 2
-    }
-    loopCount=0;
-  }
-  //If you havn't reached loopNum then increment and continue to the next loop
-  else{
-    loopCount++;
-  }
+//  // Reading and Updating the Throttle the Throttle
+//  if(loopCount >= loopNum) {
+//    int analogReadValue = analogRead(THROTTLE); // Read the POT Value
+//    int mapValue = map(analogReadValue, 1550, 4096, 0, 255); // Map the pot value, assuming that the range is between 1550-4096 (12-bit value) to 0-255
+//
+//    // MIN and MAX Check
+//    if (mapValue <= MIN_PWM_VALUE) {
+//      mapValue == MIN_PWM_VALUE;
+//    }
+//    if (mapValue > MAX_PWM_VALUE) {
+//      pwm_value = MAX_PWM_VALUE;
+//    }
+//    else {
+//      pwm_value = (mapValue + pwm_value) / 2; // The PWM value keeps increasing at a rate of 2
+//    }
+//    loopCount=0;
+//  }
+//  //If you havn't reached loopNum then increment and continue to the next loop
+//  else{
+//    loopCount++;
+//  }
 
 } // LOOP END
 
 void changeSA() {
+  toggleLed(1);
   if(digitalRead(HALLA) == HIGH) {
     state = state | B100;
   }
@@ -298,9 +325,11 @@ void changeSA() {
   }
 
   motorSpin();
+  //digitalWrite(RED_LED, LOW);
 }
 
 void changeSB() {
+  toggleLed(2);
   if(digitalRead(HALLB) == HIGH) {
     state = state | B010;
   }
@@ -312,6 +341,7 @@ void changeSB() {
 }
 
 void changeSC() {
+  toggleLed(3);
   if(digitalRead(HALLC) == HIGH) {
     state = state | B001;
   }
@@ -320,4 +350,23 @@ void changeSC() {
   }
 
   motorSpin();
+}
+
+/*
+ * toggleLed
+ * 
+ * Enables/disables the red LED based on int status.
+ */
+void toggleLed(int x){
+  // Every time a new int is entered, the LED toggles.
+  if(x != ledtoggle){
+    ledtoggle = x;
+    if(ledstatus){
+        digitalWrite(RED_LED, LOW);
+        ledstatus = 0;
+    }else{
+        digitalWrite(RED_LED, HIGH);
+        ledstatus = 1;
+    }
+  }
 }
