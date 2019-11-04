@@ -1,5 +1,25 @@
 #include <SPI.h>
 
+/*
+ * UOE Racing: BLDC Motor Controller Program 1.1.0
+ * 
+ * CONTRIBUTORS:
+ *   - Atinderpaul Kanwar - ap_kanwar@outlook.com
+ *   - Ryan Fleck - Ryan.Fleck@protonmail.com
+ * 
+ * TODO:
+ *   - Jumpstart motor on throttle.
+ * 
+ * CHANGELOG:
+ * Version 1.1.0:
+ *   - Change pins to interrupt-capable pins.
+ *   - Reverse sequence of hall status modification operations.
+ *   
+ * Version 1.0.0:
+ *   - Initial implementation of interrupt code.
+ * 
+ */
+
 #define ENABLE 5
 
 // SPI PINS
@@ -10,6 +30,7 @@
 #define MOSI 15
 
 // HALL PINS
+// Since 1.1.0: Update to interrupt-capable pins.
 #define HALLA 19
 #define HALLB 18
 #define HALLC 13
@@ -21,12 +42,10 @@
 #define HIGHB 38
 #define HIGHC 36
 
-#define LED RED_LED
-
 #define THROTTLE 24
 
 // Constants
-#define PWM_VALUE 128
+#define PWM_VALUE_DEBUG 128 // During testing, this value is used as throttle while the MSP430 buttons are pressed.
 #define PWM_FREQUENCY 20000 // 20kHz
 #define DEFAULT_THROTTLE_LOOP_COUNT 1000 // must be smaller than 65,535
 #define MIN_PWM_VALUE 0
@@ -36,14 +55,6 @@
 int loopCount = 0; //Variable to store number of loops gone through 
 int loopNum = DEFAULT_THROTTLE_LOOP_COUNT; //Number of loops to trigger a throttle read
 int pwm_value = 0; //Throttle value, always start this off at 0
-
-int ledstatus = 0;
-int ledtoggle = -1;
-
-// Hall interrupt int
-int halldebug = 0;
-
-int motorsem = 0;
 
 //State Variable Values
 #define zeroDegrees B110 //6
@@ -55,163 +66,21 @@ int motorsem = 0;
 #define errorState1 B111
 #define errorState2 B000
 
-// Debugging macros
-#define preInterruptMacro() digitalWrite(31, HIGH)
+// Function call repitition macros
+#define postInterruptAction() motorSpin()
 
 volatile byte state = 0;
 volatile byte old_state = state;
 volatile byte expected_next_state = state;
 
-int desiredTorque = 0;
-bool new_state_OK = false;
 
-/* Coast
-*Allows the motor to coast by turning off all Fets
-*/
-void coast (void) {
-  //setHighZ('A');
-  digitalWrite(LOWA, LOW);
-  digitalWrite(HIGHA, LOW);
-  //setHighZ('B');
-  digitalWrite(LOWB, LOW);
-  digitalWrite(HIGHB, LOW);
-  //setHighZ('C');
-  digitalWrite(LOWC, LOW);
-  digitalWrite(HIGHC, LOW);
-}
 
-// SPI SETUP
-void controllerSetup(void) {
-  delay(200); // Why is this here?
-  SPI.begin();
-  SPI.setClockDivider(SPI_CLOCK_DIV64);
-  SPI.setBitOrder(MSBFIRST);
-  SPI.setDataMode(SPI_MODE1);
-  SPI.setModule(0);
-  
-  // Writing to Control Register
-  // Selecting 3xPWM Mode Function, using controller driver control register:
-  // BIT#  15  14 13 12 11 10    09        08            07    06 05     04    03        02    01   00
-  // Name  R/W < Addr3-0 > res chgpump gatedrivevolt overtemp pwmMode  pwmcom 1pwmdir  coast brake clearfault
-  //       W=0 (MSB first)                                    
-  // Value  0  Ctrl=0010    0     0         0             0   3xPWM=01    0     0         0     0    0
-  // This corresponds to a 16-bit value to put motor controller into 3xPWM mode: 0(001 0)000 0(01)0 0000 => 0x1020
-  // This is actually executed as single-byte writes of 0x10 then 0x20
-
-  digitalWrite(nSCS, LOW); //Pull slave select low to begin the transaction
-  delayMicroseconds(2);
-  SPI.transfer(0x10);
-  byte return_value = SPI.transfer(0x20);
-  Serial.println(return_value, HEX);
-  Serial.println();
-  delayMicroseconds(2);
-  digitalWrite(nSCS, HIGH); //Pull slave select high to end the transaction
-  
-  SPI.end();
-}
-
-void greenLedOff(){
-  //digitalWrite(GREEN_LED, LOW);  
-}
-
-void motorSpin() {
-  // Switch-Case Statement follow the REVERSE1 code, (which previously required a push to start spinning the motor clockwise    (Check clockwise_motor brach on GITLAB)
-  switch(state) {
-    case zeroDegrees: //010
-      greenLedOff();
-      //setLow('B');
-      digitalWrite(LOWB, HIGH);
-      digitalWrite(HIGHB, LOW);    
-      //setHighZ('A');
-      digitalWrite(LOWA, LOW);
-      digitalWrite(HIGHA, LOW);    
-      //setHigh('C');
-      digitalWrite(LOWC, HIGH);
-      analogWrite(HIGHC, pwm_value);
-      expected_next_state = twentyDegrees;
-    break;
-    
-    case twentyDegrees: //011
-      greenLedOff();
-      //setLow('B');
-      digitalWrite(LOWB, HIGH);
-      digitalWrite(HIGHB, LOW);    
-      //setHighZ('C');
-      digitalWrite(LOWC, LOW);
-      digitalWrite(HIGHC, LOW);    
-      //setHigh('A');
-      digitalWrite(LOWA, HIGH);
-      analogWrite(HIGHA, pwm_value);
-      expected_next_state = fortyDegrees;
-    break;
-  
-    case fortyDegrees: //001
-      greenLedOff();
-      //setLow('C');
-      digitalWrite(LOWC, HIGH);
-      digitalWrite(HIGHC, LOW);    
-      //setHighZ('B');
-      digitalWrite(LOWB, LOW);
-      digitalWrite(HIGHB, LOW);    
-      //setHigh('A');
-      digitalWrite(LOWA, HIGH);
-      analogWrite(HIGHA, pwm_value);
-      expected_next_state = sixtyDegrees;
-    break;
-  
-    case sixtyDegrees: //101
-      greenLedOff(); 
-      //setLow('C');
-      digitalWrite(LOWC, HIGH);
-      digitalWrite(HIGHC, LOW);    
-      //setHighZ('A');
-      digitalWrite(LOWA, LOW);
-      digitalWrite(HIGHA, LOW);    
-      //setHigh('B');
-      digitalWrite(LOWB, HIGH);
-      analogWrite(HIGHB, pwm_value);
-      expected_next_state = eightyDegrees;
-    break;
-  
-    case eightyDegrees: //100
-      greenLedOff();
-      //setLow('A');
-      digitalWrite(LOWA, HIGH);
-      digitalWrite(HIGHA, LOW);
-      //setHighZ('C');
-      digitalWrite(LOWC, LOW);
-      digitalWrite(HIGHC, LOW);
-      //setHigh('B');
-      digitalWrite(LOWB, HIGH);
-      analogWrite(HIGHB, pwm_value);
-      expected_next_state = hundredDegrees;
-    break;
-
-    case hundredDegrees: //110
-      greenLedOff();
-      //setLow('A');
-      digitalWrite(LOWA, HIGH);
-      digitalWrite(HIGHA, LOW);    
-      //setHighZ('B');
-      digitalWrite(LOWB, LOW);
-      digitalWrite(HIGHB, LOW);    
-      //setHigh('C');
-      digitalWrite(LOWC, HIGH);
-      analogWrite(HIGHC, pwm_value);
-      expected_next_state = zeroDegrees;
-    break;
-  
-    default :
-       //digitalWrite(GREEN_LED, HIGH);
-//      Serial.println("Error - Set to Coast");
-//      Serial.println(state);
-      coast();
-      expected_next_state = state;  // assume the same errored state is the most likely one next
-    break;
-  } // SWITCH END
-}
-
-// SETUP CODE
+/*
+ * SETUP CODE
+ *   - Configures MSP430 pins
+ *   - Calls function to set up SPI
+ *   - Sets interrupts
+ */
 void setup() {
   digitalWrite(ENABLE, HIGH);
   pinMode(ENABLE, OUTPUT);
@@ -251,10 +120,13 @@ void setup() {
   pinMode(HIGHB, OUTPUT);
   pinMode(HIGHC, OUTPUT);
 
+  // Input from steering wheel
   pinMode(THROTTLE, INPUT);
-  pinMode(RED_LED, OUTPUT);
+
+  // Lights and switches for debugging
   pinMode(P1_1, INPUT_PULLUP);
   pinMode(P2_1, INPUT_PULLUP);
+  pinMode(RED_LED, OUTPUT);
   pinMode(GREEN_LED, OUTPUT);
 
   state = errorState1;
@@ -270,57 +142,34 @@ void setup() {
   controllerSetup();
 
   // SET THE INITIAL STATE OF THE HALL INPUTS
-  //Read HALL Values
-  int rHallA = digitalRead(HALLA);
-  int rHallB = digitalRead(HALLB);
-  int rHallC = digitalRead(HALLC);
-
-  if(rHallA == HIGH) {
+  if(digitalRead(HALLA) == HIGH)
     state = state | B100;  // set bit 2
-  }
-  if(rHallB == HIGH) {
+  if(digitalRead(HALLB) == HIGH)
     state = state | B010;  // set bit 1
-  }
-  if (rHallC == HIGH) {
+  if (digitalRead(HALLC) == HIGH)
     state = state | B001;  // set bit 0
-  }
-
-  // Ensure red LED toggle works correctly
-  // for interrupt debugging.
-  noInterrupts();
-  toggleLed(4);
-  delay(500);
-  toggleLed(5);
-  delay(100);
+  
   interrupts();
-
   motorSpin();
+} // setup() END
 
-  //Serial.println("Setup complete.");
-  //Serial.println("Hall values:"+String(rHallA)+String(rHallB)+String(rHallC));
-//  Serial.printf("Hall values: %i%i%i",rHallA,rHallB,rHallC);
 
-   pwm_value = PWM_VALUE;
-}
 
-// LOOP CODE
+/*
+ * LOOP CODE
+ */
 void loop() {
 
-  //toggleLed(ledtoggle+1);
-  //delay(500);
-
-//    // Temporary logic using either button on the board to run the motor.
-//  if (digitalRead(P1_1) & digitalRead(P2_1)) {
-//    //If neither button has been pressed, throttle can be set to zero.
-//    pwm_value = 0;
-//
-//    //digitalWrite(GREEN_LED, LOW);
-//  } else {
-//    // If one or the other is pressed, the bitwise AND will be zero, so throttle should be set.
-//    pwm_value = PWM_VALUE;
-//    
-//    //digitalWrite(GREEN_LED, HIGH);
-//  }
+    // Temporary logic using either built-in button on the MSP430 board to run the motor.
+  if (digitalRead(P1_1) & digitalRead(P2_1)) {
+    //If neither button has been pressed, throttle can be set to zero.
+    pwm_value = 0;
+    digitalWrite(GREEN_LED, LOW);
+  } else {
+    // If one or the other is pressed, the bitwise AND will be zero, so throttle should be set.
+    pwm_value = PWM_VALUE_DEBUG;
+    digitalWrite(GREEN_LED, HIGH);
+  }
 
 //  // Reading and Updating the Throttle the Throttle
 //  if(loopCount >= loopNum) {
@@ -344,75 +193,189 @@ void loop() {
 //    loopCount++;
 //  }
 
-  //Serial.println(String(++halldebug)+" Hall value: "+String(digitalRead(HALLA))+String(digitalRead(HALLB))+String(digitalRead(HALLC)));
+} // loop() END
 
-} // LOOP END
 
+
+/*
+ * SPI SETUP FUNCTION
+ */
+void controllerSetup(void) {
+  delay(200); // Why is this here?
+  SPI.begin();
+  SPI.setClockDivider(SPI_CLOCK_DIV64);
+  SPI.setBitOrder(MSBFIRST);
+  SPI.setDataMode(SPI_MODE1);
+  SPI.setModule(0);
+  
+  // Writing to Control Register
+  // Selecting 3xPWM Mode Function, using controller driver control register:
+  // BIT#  15  14 13 12 11 10    09        08            07    06 05     04    03        02    01   00
+  // Name  R/W < Addr3-0 > res chgpump gatedrivevolt overtemp pwmMode  pwmcom 1pwmdir  coast brake clearfault
+  //       W=0 (MSB first)                                    
+  // Value  0  Ctrl=0010    0     0         0             0   3xPWM=01    0     0         0     0    0
+  // This corresponds to a 16-bit value to put motor controller into 3xPWM mode: 0(001 0)000 0(01)0 0000 => 0x1020
+  // This is actually executed as single-byte writes of 0x10 then 0x20
+
+  digitalWrite(nSCS, LOW); //Pull slave select low to begin the transaction
+  delayMicroseconds(2);
+  SPI.transfer(0x10);
+  byte return_value = SPI.transfer(0x20);
+  Serial.println(return_value, HEX);
+  Serial.println();
+  delayMicroseconds(2);
+  digitalWrite(nSCS, HIGH); //Pull slave select high to end the transaction
+  
+  SPI.end();
+}
+
+
+/*
+ * MOTOR SPIN FUNCTION
+ *   - Called after an interrupt has been encountered
+ *   - Writes new values to the HALLs
+ */
+void motorSpin() {
+  // TODO: Jumpstart motor on throttle.
+  switch(state) {
+    case zeroDegrees: //010
+      //setLow('B');
+      digitalWrite(LOWB, HIGH);
+      digitalWrite(HIGHB, LOW);    
+      //setHighZ('A');
+      digitalWrite(LOWA, LOW);
+      digitalWrite(HIGHA, LOW);    
+      //setHigh('C');
+      digitalWrite(LOWC, HIGH);
+      analogWrite(HIGHC, pwm_value);
+      expected_next_state = twentyDegrees;
+      break;
+    
+    case twentyDegrees: //011
+      //setLow('B');
+      digitalWrite(LOWB, HIGH);
+      digitalWrite(HIGHB, LOW);    
+      //setHighZ('C');
+      digitalWrite(LOWC, LOW);
+      digitalWrite(HIGHC, LOW);    
+      //setHigh('A');
+      digitalWrite(LOWA, HIGH);
+      analogWrite(HIGHA, pwm_value);
+      expected_next_state = fortyDegrees;
+      break;
+  
+    case fortyDegrees: //001
+      //setLow('C');
+      digitalWrite(LOWC, HIGH);
+      digitalWrite(HIGHC, LOW);    
+      //setHighZ('B');
+      digitalWrite(LOWB, LOW);
+      digitalWrite(HIGHB, LOW);    
+      //setHigh('A');
+      digitalWrite(LOWA, HIGH);
+      analogWrite(HIGHA, pwm_value);
+      expected_next_state = sixtyDegrees;
+      break;
+  
+    case sixtyDegrees: //101
+      //setLow('C');
+      digitalWrite(LOWC, HIGH);
+      digitalWrite(HIGHC, LOW);    
+      //setHighZ('A');
+      digitalWrite(LOWA, LOW);
+      digitalWrite(HIGHA, LOW);    
+      //setHigh('B');
+      digitalWrite(LOWB, HIGH);
+      analogWrite(HIGHB, pwm_value);
+      expected_next_state = eightyDegrees;
+    break;
+  
+    case eightyDegrees: //100
+      //setLow('A');
+      digitalWrite(LOWA, HIGH);
+      digitalWrite(HIGHA, LOW);
+      //setHighZ('C');
+      digitalWrite(LOWC, LOW);
+      digitalWrite(HIGHC, LOW);
+      //setHigh('B');
+      digitalWrite(LOWB, HIGH);
+      analogWrite(HIGHB, pwm_value);
+      expected_next_state = hundredDegrees;
+      break;
+
+    case hundredDegrees: //110
+      //setLow('A');
+      digitalWrite(LOWA, HIGH);
+      digitalWrite(HIGHA, LOW);    
+      //setHighZ('B');
+      digitalWrite(LOWB, LOW);
+      digitalWrite(HIGHB, LOW);    
+      //setHigh('C');
+      digitalWrite(LOWC, HIGH);
+      analogWrite(HIGHC, pwm_value);
+      expected_next_state = zeroDegrees;
+      break;
+  
+    default :
+      coast();
+      expected_next_state = state;  // assume the same errored state is the most likely one next
+      break;
+    
+  } // SWITCH END
+}// motorSpin() END
+
+
+
+/*
+ * COAST FUNCTION
+ *   - Removes all forces from the BLDC by disabling FETs, allowing the motor to coast
+ */
+void coast (void) {
+  //setHighZ('A');
+  digitalWrite(LOWA, LOW);
+  digitalWrite(HIGHA, LOW);
+  //setHighZ('B');
+  digitalWrite(LOWB, LOW);
+  digitalWrite(HIGHB, LOW);
+  //setHighZ('C');
+  digitalWrite(LOWC, LOW);
+  digitalWrite(HIGHC, LOW);
+}
+
+
+
+/*
+ * INTERRUPT FUNCTIONS:
+ * changeSX: Interrupt sequence for HALL X.
+ *   Each interrupt function is triggered during a voltage change on the relevant
+ *   pin.
+ */
 void changeSA() {
-  preInterruptMacro();
-  //toggleLed(1);
   if(digitalRead(HALLA) == HIGH) {
     state |= B100;
   }
   else {
     state &= B001;
   }
-
-  doStuff();
-  digitalWrite(31, LOW);
+  postInterruptAction();
 }
 
 void changeSB() {
-//  preInterruptMacro();
-  //toggleLed(2);
   if(digitalRead(HALLB) == HIGH) {
     state |= B010;
   }
   else {
     state &= B100;
   }
-
-  doStuff();
+  postInterruptAction();
 }
 
 void changeSC() {
-//  preInterruptMacro();
-  //toggleLed(3);
   if(digitalRead(HALLC) == HIGH) {
     state |= B001;
   }
   else {
     state &= B010;
   }
-
-  doStuff();
-}
-
-void doStuff(){
-  
-  //digitalWrite(RED_LED, LOW);
-  //interrupts();
-  //Serial.println(String(++halldebug)+" Hall value: "+String(digitalRead(HALLA))+String(digitalRead(HALLB))+String(digitalRead(HALLC)));
-  motorSpin();
-  
-  
-}
-
-/*
- * toggleLed
- * 
- * Enables/disables the red LED based on int status.
- */
-void toggleLed(int x){
-  // Every time a new int is entered, the LED toggles.
-  if(x != ledtoggle){
-    ledtoggle = x;
-    if(ledstatus){
-        digitalWrite(RED_LED, LOW);
-        ledstatus = 0;
-    }else{
-        digitalWrite(RED_LED, HIGH);
-        ledstatus = 1;
-    }
-  }
+  postInterruptAction();
 }
