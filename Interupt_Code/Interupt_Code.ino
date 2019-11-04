@@ -26,7 +26,7 @@
 #define THROTTLE 24
 
 // Constants
-#define PWM_VALUE 20
+#define PWM_VALUE 128
 #define PWM_FREQUENCY 20000 // 20kHz
 #define DEFAULT_THROTTLE_LOOP_COUNT 1000 // must be smaller than 65,535
 #define MIN_PWM_VALUE 0
@@ -54,6 +54,9 @@ int motorsem = 0;
 #define hundredDegrees B100 //4
 #define errorState1 B111
 #define errorState2 B000
+
+// Debugging macros
+#define preInterruptMacro() digitalWrite(31, HIGH)
 
 volatile byte state = 0;
 volatile byte old_state = state;
@@ -108,7 +111,7 @@ void controllerSetup(void) {
 }
 
 void greenLedOff(){
-  digitalWrite(GREEN_LED, LOW);  
+  //digitalWrite(GREEN_LED, LOW);  
 }
 
 void motorSpin() {
@@ -199,7 +202,7 @@ void motorSpin() {
     break;
   
     default :
-       digitalWrite(GREEN_LED, HIGH);
+       //digitalWrite(GREEN_LED, HIGH);
 //      Serial.println("Error - Set to Coast");
 //      Serial.println(state);
       coast();
@@ -285,9 +288,9 @@ void setup() {
   // Ensure red LED toggle works correctly
   // for interrupt debugging.
   noInterrupts();
-  //toggleLed(4);
+  toggleLed(4);
   delay(500);
-  //toggleLed(5);
+  toggleLed(5);
   delay(100);
   interrupts();
 
@@ -296,35 +299,28 @@ void setup() {
   //Serial.println("Setup complete.");
   //Serial.println("Hall values:"+String(rHallA)+String(rHallB)+String(rHallC));
 //  Serial.printf("Hall values: %i%i%i",rHallA,rHallB,rHallC);
+
+   pwm_value = PWM_VALUE;
 }
 
 // LOOP CODE
 void loop() {
 
-  toggleLed(ledtoggle+1);
-  delay(100);
+  //toggleLed(ledtoggle+1);
+  //delay(500);
 
-
-/*
- * PUSHBUTTON TO START MOTOR CODE.
- * VROOM VROOM VROOM VROOM VROOM
- */
-    // Temporary logic using either button on the board to run the motor.
-  if (digitalRead(P1_1) & digitalRead(P2_1)) {
-    //If neither button has been pressed, throttle can be set to zero.
-    pwm_value = 0;
-    motorsem=1;
-    //digitalWrite(GREEN_LED, LOW);
-  } else {
-    // If one or the other is pressed, the bitwise AND will be zero, so throttle should be set.
-    pwm_value = PWM_VALUE;
-    
-    if(motorsem){
-      motorSpin();
-      motorsem=0;  
-    }
-    //digitalWrite(GREEN_LED, HIGH);
-  }
+//    // Temporary logic using either button on the board to run the motor.
+//  if (digitalRead(P1_1) & digitalRead(P2_1)) {
+//    //If neither button has been pressed, throttle can be set to zero.
+//    pwm_value = 0;
+//
+//    //digitalWrite(GREEN_LED, LOW);
+//  } else {
+//    // If one or the other is pressed, the bitwise AND will be zero, so throttle should be set.
+//    pwm_value = PWM_VALUE;
+//    
+//    //digitalWrite(GREEN_LED, HIGH);
+//  }
 
 //  // Reading and Updating the Throttle the Throttle
 //  if(loopCount >= loopNum) {
@@ -353,23 +349,26 @@ void loop() {
 } // LOOP END
 
 void changeSA() {
+  preInterruptMacro();
   //toggleLed(1);
-  if(digitalRead(HALLA) == HIGH && state == B010) {
+  if(digitalRead(HALLA) == HIGH) {
     state |= B100;
   }
-  else  if (state == B101){
+  else {
     state &= B001;
   }
 
   doStuff();
+  digitalWrite(31, LOW);
 }
 
 void changeSB() {
+//  preInterruptMacro();
   //toggleLed(2);
-  if(digitalRead(HALLB) == HIGH && state == B001) {
+  if(digitalRead(HALLB) == HIGH) {
     state |= B010;
   }
-  else if (state == B110){
+  else {
     state &= B100;
   }
 
@@ -377,11 +376,12 @@ void changeSB() {
 }
 
 void changeSC() {
+//  preInterruptMacro();
   //toggleLed(3);
-  if(digitalRead(HALLC) == HIGH && state == B100) {
+  if(digitalRead(HALLC) == HIGH) {
     state |= B001;
   }
-  else  if (state == B011){
+  else {
     state &= B010;
   }
 
@@ -389,12 +389,12 @@ void changeSC() {
 }
 
 void doStuff(){
-  digitalWrite(RED_LED, LOW);
-  //Serial.println(String(++halldebug)+" UPDATE TO "+String(digitalRead(HALLA))+String(digitalRead(HALLB))+String(digitalRead(HALLC)));
-
+  
+  //digitalWrite(RED_LED, LOW);
   //interrupts();
   //Serial.println(String(++halldebug)+" Hall value: "+String(digitalRead(HALLA))+String(digitalRead(HALLB))+String(digitalRead(HALLC)));
   motorSpin();
+  
   
 }
 
