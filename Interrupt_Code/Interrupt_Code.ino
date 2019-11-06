@@ -7,10 +7,12 @@
  *   - Atinderpaul Kanwar - ap_kanwar@outlook.com
  *   - Ryan Fleck - Ryan.Fleck@protonmail.com
  * 
- * TODO:
- *   - Jumpstart motor on throttle.
- * 
  * CHANGELOG:
+ * Version 1.1.1:
+ *   - Add initMotorState function to read halls during setup.
+ *   - FIX TODO: Jumpstart motor on throttle.
+ *   - Add red running-light to indicate program is ready.
+ *   
  * Version 1.1.0:
  *   - Change pins to interrupt-capable pins.
  *   - Reverse sequence of hall status modification operations.
@@ -148,9 +150,14 @@ void setup() {
     state = state | B010;  // set bit 1
   if (digitalRead(HALLC) == HIGH)
     state = state | B001;  // set bit 0
-  
+
   interrupts();
-  motorSpin();
+
+  // Set initial state.
+  initMotorState();
+
+  // Red LED indicates program is ready to roll!
+  digitalWrite(RED_LED, HIGH);
 } // setup() END
 
 
@@ -169,6 +176,7 @@ void loop() {
     // If one or the other is pressed, the bitwise AND will be zero, so throttle should be set.
     pwm_value = PWM_VALUE_DEBUG;
     digitalWrite(GREEN_LED, HIGH);
+    motorSpin();
   }
 
 //  // Reading and Updating the Throttle the Throttle
@@ -340,6 +348,19 @@ void coast (void) {
   //setHighZ('C');
   digitalWrite(LOWC, LOW);
   digitalWrite(HIGHC, LOW);
+}
+
+
+
+/*
+ * INITMOTORSTATE FUNCTION
+ *   - Checks the halls and sets the state byte.
+ */
+void initMotorState(){
+  state = B000;
+  state |= digitalRead(HALLA) ? B100 : B000;
+  state |= digitalRead(HALLB) ? B010 : B000;
+  state |= digitalRead(HALLC) ? B001 : B000;
 }
 
 
