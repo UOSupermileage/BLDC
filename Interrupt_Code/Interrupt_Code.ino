@@ -12,6 +12,7 @@
  *   - Add initMotorState function to read halls during setup.
  *   - FIX TODO: Jumpstart motor on throttle.
  *   - Add red running-light to indicate program is ready.
+ *   - Remove next-state code, no longer used.
  *   
  * Version 1.1.0:
  *   - Change pins to interrupt-capable pins.
@@ -53,11 +54,6 @@
 #define MIN_PWM_VALUE 0
 #define MAX_PWM_VALUE 255
 
-//Throttle Variables and Pin
-int loopCount = 0; //Variable to store number of loops gone through 
-int loopNum = DEFAULT_THROTTLE_LOOP_COUNT; //Number of loops to trigger a throttle read
-int pwm_value = 0; //Throttle value, always start this off at 0
-
 //State Variable Values
 #define zeroDegrees B110 //6
 #define twentyDegrees B010 //2
@@ -71,9 +67,11 @@ int pwm_value = 0; //Throttle value, always start this off at 0
 // Function call repitition macros
 #define postInterruptAction() motorSpin()
 
+//Throttle Variables and Pin
+int loopCount = 0; //Variable to store number of loops gone through 
+int loopNum = DEFAULT_THROTTLE_LOOP_COUNT; //Number of loops to trigger a throttle read
+int pwm_value = 0; //Throttle value, always start this off at 0
 volatile byte state = 0;
-volatile byte old_state = state;
-volatile byte expected_next_state = state;
 
 
 
@@ -130,10 +128,6 @@ void setup() {
   pinMode(P2_1, INPUT_PULLUP);
   pinMode(RED_LED, OUTPUT);
   pinMode(GREEN_LED, OUTPUT);
-
-  state = errorState1;
-  old_state = errorState2;
-  expected_next_state = errorState2;
   
   Serial.begin(9600);
 
@@ -142,15 +136,8 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(HALLB), changeSB, CHANGE);
   attachInterrupt(digitalPinToInterrupt(HALLC), changeSC, CHANGE); 
   controllerSetup();
-
-  // SET THE INITIAL STATE OF THE HALL INPUTS
-  if(digitalRead(HALLA) == HIGH)
-    state = state | B100;  // set bit 2
-  if(digitalRead(HALLB) == HIGH)
-    state = state | B010;  // set bit 1
-  if (digitalRead(HALLC) == HIGH)
-    state = state | B001;  // set bit 0
-
+  
+  // TODO: Remove and see if things still work.
   interrupts();
 
   // Set initial state.
@@ -244,7 +231,6 @@ void controllerSetup(void) {
  *   - Writes new values to the HALLs
  */
 void motorSpin() {
-  // TODO: Jumpstart motor on throttle.
   switch(state) {
     case zeroDegrees: //010
       //setLow('B');
@@ -256,7 +242,6 @@ void motorSpin() {
       //setHigh('C');
       digitalWrite(LOWC, HIGH);
       analogWrite(HIGHC, pwm_value);
-      expected_next_state = twentyDegrees;
       break;
     
     case twentyDegrees: //011
@@ -269,7 +254,6 @@ void motorSpin() {
       //setHigh('A');
       digitalWrite(LOWA, HIGH);
       analogWrite(HIGHA, pwm_value);
-      expected_next_state = fortyDegrees;
       break;
   
     case fortyDegrees: //001
@@ -282,7 +266,6 @@ void motorSpin() {
       //setHigh('A');
       digitalWrite(LOWA, HIGH);
       analogWrite(HIGHA, pwm_value);
-      expected_next_state = sixtyDegrees;
       break;
   
     case sixtyDegrees: //101
@@ -295,7 +278,6 @@ void motorSpin() {
       //setHigh('B');
       digitalWrite(LOWB, HIGH);
       analogWrite(HIGHB, pwm_value);
-      expected_next_state = eightyDegrees;
     break;
   
     case eightyDegrees: //100
@@ -308,7 +290,6 @@ void motorSpin() {
       //setHigh('B');
       digitalWrite(LOWB, HIGH);
       analogWrite(HIGHB, pwm_value);
-      expected_next_state = hundredDegrees;
       break;
 
     case hundredDegrees: //110
@@ -321,12 +302,10 @@ void motorSpin() {
       //setHigh('C');
       digitalWrite(LOWC, HIGH);
       analogWrite(HIGHC, pwm_value);
-      expected_next_state = zeroDegrees;
       break;
   
     default :
       coast();
-      expected_next_state = state;  // assume the same errored state is the most likely one next
       break;
     
   } // SWITCH END
