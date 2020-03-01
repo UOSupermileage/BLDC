@@ -4,16 +4,15 @@
 #define ENABLE 5
 
 // SPI PINS
-#define nSCS 12
-#define SCLK 7
-#define nFAULT 8
-#define MISO 14
-#define MOSI 15
+#define nSCS 18 //12
+#define SCLK 13 //7
+#define nFAULT 15 //8
 
-// HALL PINS
-#define HALLA 19
-#define HALLB 18
-#define HALLC 13
+// 10a 9b 31c -> Older revision numbers.
+// HALL PINS     // Old
+#define HALLA 4  //19
+#define HALLB 6  //18
+#define HALLC 16 //13
 
 #define LOWA 39
 #define LOWB 37
@@ -116,8 +115,8 @@ void controllerSetup(void) {
 
 // SETUP CODE
 void setup() {
-  
-  IncreaseClockSpeed_25MHz()
+
+  IncreaseClockSpeed_25MHz();
   
   digitalWrite(ENABLE, HIGH);
   pinMode(ENABLE, OUTPUT);
@@ -136,9 +135,6 @@ void setup() {
   digitalWrite(SCLK, LOW);
 
   pinMode(nFAULT, INPUT);
-  // pinMode(MISO, INPUT_PULLUP);
-  pinMode(MISO, INPUT);
-  pinMode(MOSI, OUTPUT);
 
   pinMode(HALLA, INPUT);
   pinMode(HALLB, INPUT);

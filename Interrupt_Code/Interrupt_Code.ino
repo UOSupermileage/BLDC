@@ -27,17 +27,16 @@
 #define ENABLE 5
 
 // SPI PINS
-#define nSCS 12
-#define SCLK 7
-#define nFAULT 8
-#define MISO 14
-#define MOSI 15
+#define nSCS 18 //12
+#define SCLK 13 //7
+#define nFAULT 18 //8
 
 // HALL PINS
 // Since 1.1.0: Update to interrupt-capable pins.
-#define HALLA 19
-#define HALLB 18
-#define HALLC 13
+#define HALLA 4 //19
+#define HALLB 6 //18
+#define HALLC 16 //13
+// 10a 9b 31c
 
 #define LOWA 39
 #define LOWB 37
@@ -103,9 +102,6 @@ void setup() {
   digitalWrite(SCLK, LOW);
   
   pinMode(nFAULT, INPUT);
-  // pinMode(MISO, INPUT_PULLUP);
-  pinMode(MISO, INPUT);
-  pinMode(MOSI, OUTPUT);
 
   pinMode(HALLA, INPUT);
   pinMode(HALLB, INPUT);
