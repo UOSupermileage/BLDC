@@ -11,6 +11,7 @@
 // SPI PINS
 #define SCLK 7
 #define nFAULT 33
+
 #define CS_TEMP 32
 #define CS_SD 11
 #define EXTERNAL_SPI_ENABLE 15
@@ -37,7 +38,7 @@
 #define HIGHC 36
 
 // Constants
-#define PWM_VALUE_DEBUG 100 // For button-press debugging.
+#define PWM_VALUE_DEBUG 155 // For button-press debugging.
 #define PWM_FREQUENCY 20000 // 20kHz
 #define MIN_PWM_VALUE 0
 #define MAX_PWM_VALUE 255

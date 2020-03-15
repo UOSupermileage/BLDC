@@ -9,6 +9,10 @@
  *   - Ryan Fleck - Ryan.Fleck@protonmail.com
  * 
  * CHANGELOG:
+ * Version 1.1.2:
+ *   - Update pins for UOE 2020rA board.
+ *   - Temporarily disable other SPI devices.
+ *   
  * Version 1.1.1:
  *   - Add initMotorState function to read halls during setup.
  *   - FIX TODO: Jumpstart motor on throttle.
@@ -24,23 +28,38 @@
  * 
  */
 
+ 
+/*
+ * UOE 2020rA BOARD SETUP INSTRUCTIONS:
+ * 
+ * Yellow bundle:
+ * A -> White wire.
+ * B -> Purple wire.
+ * C -> Orange wire.
+ */
+
 #define ENABLE 5
 
+
 // SPI PINS
-#define nSCS 18 //12
-#define SCLK 13 //7
-#define nFAULT 18 //8
+#define SCLK 7
+#define nFAULT 33
+
+#define CS_TEMP 32
+#define CS_SD 11
+#define EXTERNAL_SPI_ENABLE 15
+
+#define CS_DRV 8
 
 // HALL PINS
-// Since 1.1.0: Update to interrupt-capable pins.
-#define HALLA 4 //19
-#define HALLB 6 //18
-#define HALLC 16 //13
-// 10a 9b 31c
+#define HALLA 19
+#define HALLB 13
+#define HALLC 12
 
 #define LOWA 39
 #define LOWB 37
 #define LOWC 35
+
 #define HIGHA 40
 #define HIGHB 38
 #define HIGHC 36
@@ -83,19 +102,27 @@ volatile byte state = 0;
  */
 void setup() {
 
-  IncreaseClockSpeed_25MHz();
+  // Disable other SPI devices:
+  pinMode(CS_TEMP, OUTPUT);
+  pinMode(CS_SD, OUTPUT);
+  pinMode(EXTERNAL_SPI_ENABLE, OUTPUT);
+  digitalWrite(CS_TEMP, HIGH);
+  digitalWrite(CS_SD, HIGH);
+  digitalWrite(EXTERNAL_SPI_ENABLE, HIGH);
   
   digitalWrite(ENABLE, HIGH);
   pinMode(ENABLE, OUTPUT);
   digitalWrite(ENABLE, HIGH);
+
+  
   delayMicroseconds(2);
   digitalWrite(ENABLE, LOW); // Keep enable low for between 4 and 40 microseconds
   delayMicroseconds(20);
   digitalWrite(ENABLE, HIGH);
 
-  digitalWrite(nSCS, HIGH);
-  pinMode(nSCS, OUTPUT);
-  digitalWrite(nSCS, HIGH);
+  digitalWrite(CS_DRV, HIGH);
+  pinMode(CS_DRV, OUTPUT);
+  digitalWrite(CS_DRV, HIGH);
 
   digitalWrite(SCLK, LOW);
   pinMode(SCLK, OUTPUT);
@@ -135,7 +162,7 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(HALLA), changeSA, CHANGE);
   attachInterrupt(digitalPinToInterrupt(HALLB), changeSB, CHANGE);
   attachInterrupt(digitalPinToInterrupt(HALLC), changeSC, CHANGE); 
-  controllerSetup();
+  DRV8323_SPI_Setup();
   
   // TODO: Remove and see if things still work.
   interrupts();
@@ -144,6 +171,8 @@ void setup() {
   initMotorState();
 
   // Red LED indicates program is ready to roll!
+  
+  IncreaseClockSpeed_25MHz();
   digitalWrite(RED_LED, HIGH);
 } // setup() END
 
@@ -154,10 +183,12 @@ void setup() {
  */
 void loop() {
 
+  pwm_value = PWM_VALUE_DEBUG;
+
     // Temporary logic using either built-in button on the MSP430 board to run the motor.
   if (digitalRead(P1_1) & digitalRead(P2_1)) {
     //If neither button has been pressed, throttle can be set to zero.
-    pwm_value = 0;
+    pwm_value = PWM_VALUE_DEBUG;
     digitalWrite(GREEN_LED, LOW);
   } else {
     // If one or the other is pressed, the bitwise AND will be zero, so throttle should be set.
@@ -195,7 +226,7 @@ void loop() {
 /*
  * SPI SETUP FUNCTION
  */
-void controllerSetup(void) {
+void DRV8323_SPI_Setup(void) {
   delay(200); // Why is this here?
   SPI.begin();
   SPI.setClockDivider(SPI_CLOCK_DIV64);
@@ -212,14 +243,14 @@ void controllerSetup(void) {
   // This corresponds to a 16-bit value to put motor controller into 3xPWM mode: 0(001 0)000 0(01)0 0000 => 0x1020
   // This is actually executed as single-byte writes of 0x10 then 0x20
 
-  digitalWrite(nSCS, LOW); //Pull slave select low to begin the transaction
+  digitalWrite(CS_DRV, LOW); //Pull slave select low to begin the transaction
   delayMicroseconds(2);
   SPI.transfer(0x10);
   byte return_value = SPI.transfer(0x20);
   Serial.println(return_value, HEX);
   Serial.println();
   delayMicroseconds(2);
-  digitalWrite(nSCS, HIGH); //Pull slave select high to end the transaction
+  digitalWrite(CS_DRV, HIGH); //Pull slave select high to end the transaction
   
   SPI.end();
 }
