@@ -8,6 +8,9 @@
 
 #define ENABLE 5
 
+// TESTING SPEED
+#define PWM_VALUE_DEBUG 100
+
 // SPI PINS
 #define SCLK 7
 #define nFAULT 33
@@ -37,8 +40,6 @@
 #define HIGHB 38
 #define HIGHC 36
 
-// Constants
-#define PWM_VALUE_DEBUG 155 // For button-press debugging.
 #define PWM_FREQUENCY 20000 // 20kHz
 #define MIN_PWM_VALUE 0
 #define MAX_PWM_VALUE 255
