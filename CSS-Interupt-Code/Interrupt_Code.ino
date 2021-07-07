@@ -66,7 +66,7 @@ using namespace coreFunctions;
 //Throttle Variables and Pin
 int loopCount = 0; //Variable to store number of loops gone through
 int loopNum = DEFAULT_THROTTLE_LOOP_COUNT; //Number of loops to trigger a throttle read
-int pwm_value = 0; //Throttle value, always start this off at 0
+int pwm_value = 100; //Throttle value, always start this off at 0
 volatile byte state = 0;
 
 
