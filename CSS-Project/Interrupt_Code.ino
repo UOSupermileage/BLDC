@@ -1,7 +1,8 @@
+#include <SPI.h>
 #include "msp430f5529.h"
 #include "pinDeclerations.h"
 #include "coreFunctions.h"
-#include <SPI.h>
+#include "spiFunctions.h"
 
 /*
    UOE Racing: BLDC Motor Controller Program 1.1.0
@@ -42,6 +43,7 @@
 
 using namespace PINS;
 using namespace coreFunctions;
+//using namespace spiFunctions;
 
 // Constants
 #define PWM_VALUE_DEBUG 128 // During testing, this value is used as throttle while the MSP430 buttons are pressed.
@@ -69,6 +71,11 @@ int loopNum = DEFAULT_THROTTLE_LOOP_COUNT; //Number of loops to trigger a thrott
 int pwm_value = 0; //Throttle value, always start this off at 0
 volatile byte state = 0;
 
+/*
+ * DEBUG Variables
+ */
+bool _RunContious = true;
+bool isSpinning = false;
 
 
 /*
@@ -133,7 +140,7 @@ void setup() {
   pinMode(RED_LED, OUTPUT);
   pinMode(GREEN_LED, OUTPUT);
 
-  Serial.begin(9600);
+  Serial.begin(28800);
 
   analogFrequency(PWM_FREQUENCY);
   attachInterrupt(digitalPinToInterrupt(HALLA), changeSA, CHANGE);
@@ -162,7 +169,7 @@ volatile int button1_state = 1;
 volatile int button2_state = 1;
 
 void loop() {
-  delay(10);
+  delay(30);
   //
   //  if (!kickstarted) {
   //    kickstarted = 1;
@@ -174,13 +181,22 @@ void loop() {
   button1_state = digitalRead(P1_1);
   button2_state = digitalRead(P2_2);
 
-
-  if (!button1_state) {
-    digitalWrite(GREEN_LED, HIGH);
-    motorSpin();
-  } else {
-    digitalWrite(GREEN_LED, LOW);
+  if (!_RunContious){
+      if (!button1_state && !isSpinning) {
+        digitalWrite(GREEN_LED, HIGH);
+        motorSpin();
+      } else {
+        digitalWrite(GREEN_LED, LOW);
+      }
   }
+  else if (!isSpinning){
+      motorSpin();
+  }
+
+  uint16_t errorRegister = 0;
+  spiFunctions::DRV8323_ErrorRegisterRead(errorRegister);
+  Serial.println("Current status of the error register:");
+  Serial.println(errorRegister);
 
   //  if (!button2_state) {
   //    pwm_value = 256;
@@ -230,6 +246,8 @@ void loop() {
 /*
    SPI SETUP FUNCTION
 */
+
+
 void DRV8323_SPI_Setup(void) {
   delay(200); // Why is this here?
   SPI.begin();
