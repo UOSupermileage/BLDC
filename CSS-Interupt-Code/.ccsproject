@@ -13,4 +13,5 @@
 	<ignoreDefaultDeviceSettings value="true"/>
 	<origin value="C:\Users\Camry\Documents\Projects\BLDC\Interrupt_Code\Interrupt_Code.ino"/>
 	<filesToOpen value="Interrupt_Code.ino"/>
+	<isTargetManual value="false"/>
 </projectOptions>
