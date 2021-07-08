@@ -35,7 +35,7 @@ namespace PINS{
 #define HIGHB 38
 #define HIGHC 36
 
-#define THROTTLE 24
+#define THROTTLE P6_2
 
 
 }

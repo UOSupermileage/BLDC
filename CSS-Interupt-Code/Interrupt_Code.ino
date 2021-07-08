@@ -1,5 +1,5 @@
-#include <SPI.h>
 #include "msp430f5529.h"
+#include <Energia.h>
 #include "pinDeclerations.h"
 #include "coreFunctions.h"
 #include "spiFunctions.h"
@@ -69,13 +69,12 @@ using namespace coreFunctions;
 int loopCount = 0; //Variable to store number of loops gone through
 int loopNum = DEFAULT_THROTTLE_LOOP_COUNT; //Number of loops to trigger a throttle read
 int pwm_value = 100; //Throttle value, always start this off at 0
-volatile byte state = 0;
 
-/*
- * DEBUG Variables
- */
-bool _RunContious = true;
-bool isSpinning = false;
+//Motor Variables
+volatile byte state = 0; //This variable stores the current state of the motor
+
+//Debug Variables
+bool DEBUG = false;
 
 
 /*
@@ -85,79 +84,76 @@ bool isSpinning = false;
      - Sets interrupts
 */
 void setup() {
+  //Begin by increasing the speed of the chip
+  IncreaseClockSpeed_25MHz();
 
-  // Disable other SPI devices:
+  //Configure SPI devices
   pinMode(CS_TEMP, OUTPUT);
   pinMode(CS_SD, OUTPUT);
+  pinMode(CS_DRV, OUTPUT);
   pinMode(EXTERNAL_SPI_ENABLE, OUTPUT);
+  pinMode(SCLK, OUTPUT);
   digitalWrite(CS_TEMP, HIGH);
   digitalWrite(CS_SD, HIGH);
+  digitalWrite(CS_DRV, HIGH);
   digitalWrite(EXTERNAL_SPI_ENABLE, HIGH);
 
-  digitalWrite(ENABLE, HIGH);
+
+  //Gate Driver setup
   pinMode(ENABLE, OUTPUT);
-  digitalWrite(ENABLE, HIGH);
-
-
-  delayMicroseconds(2);
-  digitalWrite(ENABLE, LOW); // Keep enable low for between 4 and 40 microseconds
-  delayMicroseconds(20);
-  digitalWrite(ENABLE, HIGH);
-
-  digitalWrite(CS_DRV, HIGH);
-  pinMode(CS_DRV, OUTPUT);
-  digitalWrite(CS_DRV, HIGH);
-
-  digitalWrite(SCLK, LOW);
-  pinMode(SCLK, OUTPUT);
-  digitalWrite(SCLK, LOW);
-
   pinMode(nFAULT, INPUT);
-
-  pinMode(HALLA, INPUT);
-  pinMode(HALLB, INPUT);
-  pinMode(HALLC, INPUT);
-
-  digitalWrite(LOWA, LOW);
-  digitalWrite(LOWB, LOW);
-  digitalWrite(LOWC, LOW);
-  digitalWrite(HIGHA, LOW);
-  digitalWrite(HIGHB, LOW);
-  digitalWrite(HIGHC, LOW);
+  digitalWrite(ENABLE, HIGH);
+  analogFrequency(PWM_FREQUENCY); //sets the PWM frequency for the motor controller
+  //Control pins for driver setup
   pinMode(LOWA, OUTPUT);
   pinMode(LOWB, OUTPUT);
   pinMode(LOWC, OUTPUT);
   pinMode(HIGHA, OUTPUT);
   pinMode(HIGHB, OUTPUT);
   pinMode(HIGHC, OUTPUT);
+  digitalWrite(LOWA, LOW);
+  digitalWrite(LOWB, LOW);
+  digitalWrite(LOWC, LOW);
+  digitalWrite(HIGHA, LOW);
+  digitalWrite(HIGHB, LOW);
+  digitalWrite(HIGHC, LOW);
+  //This is the start of the fault clearing status. It might be a good idea to remove this at a latter date
+  delayMicroseconds(20);
+  digitalWrite(ENABLE, LOW);
+  delayMicroseconds(20);
+  digitalWrite(ENABLE, HIGH);
+  delayMicroseconds(20);
+  digitalWrite(ENABLE, LOW);
 
-  // Input from steering wheel
+  //Motor Hall pin setup
+  pinMode(HALLA, INPUT);
+  pinMode(HALLB, INPUT);
+  pinMode(HALLC, INPUT);
+
+  //Throttle Input setup
   pinMode(THROTTLE, INPUT);
 
-  // Lights and switches for debugging
+  // Debug stuff
   pinMode(P1_1, INPUT_PULLUP);
   pinMode(P2_1, INPUT_PULLUP);
   pinMode(RED_LED, OUTPUT);
   pinMode(GREEN_LED, OUTPUT);
-
   Serial.begin(28800);
+  digitalWrite(RED_LED, HIGH);
 
-  analogFrequency(PWM_FREQUENCY);
+  //Attach the interupts for the motor state
   attachInterrupt(digitalPinToInterrupt(HALLA), changeSA, CHANGE);
   attachInterrupt(digitalPinToInterrupt(HALLB), changeSB, CHANGE);
   attachInterrupt(digitalPinToInterrupt(HALLC), changeSC, CHANGE);
-  DRV8323_SPI_Setup();
+  interrupts(); //This is for safe keeping in case interupts were disabled by something
 
-  // TODO: Remove and see if things still work.
-  interrupts();
+  //Configure the driver chip over SPI
+  digitalWrite(ENABLE, HIGH);
+  DRV8323_SPI_Setup();
+  DRV8323_CSA();
 
   // Set initial state.
   initMotorState();
-
-  // Red LED indicates program is ready to roll!
-
-  IncreaseClockSpeed_25MHz();
-  digitalWrite(RED_LED, HIGH);
 } // setup() END
 
 
@@ -170,113 +166,27 @@ volatile int button2_state = 1;
 
 void loop() {
   delay(30);
-  //
-  //  if (!kickstarted) {
-  //    kickstarted = 1;
-  //    delay(100);
-  //    motorSpin();
-  //  }
 
   // Button DOWN will be read as 0, not 1!
   button1_state = digitalRead(P1_1);
   button2_state = digitalRead(P2_2);
 
-  if (!_RunContious){
-      if (!button1_state && !isSpinning) {
+      if (!button1_state) {
         digitalWrite(GREEN_LED, HIGH);
         motorSpin();
       } else {
         digitalWrite(GREEN_LED, LOW);
       }
-  }
-  else if (!isSpinning){
-      motorSpin();
-  }
-
-  uint16_t errorRegister = 0;
-  spiFunctions::DRV8323_ErrorRegisterRead(errorRegister);
-  Serial.println("Current status of the error register:");
-  Serial.println(errorRegister);
-
-  //  if (!button2_state) {
-  //    pwm_value = 256;
-  //  } else {
-  //    pwm_value = PWM_VALUE_DEBUG;
-  //  }
-
-
-  // Temporary logic using either built-in button on the MSP430 board to run the motor.
-  //  if (button2_state && button1_state) {
-  //    //If neither button has been pressed, throttle can be set to zero.
-  //    pwm_value = PWM_VALUE_DEBUG;
-  //    digitalWrite(GREEN_LED, LOW);
-  //  } else {
-  //    // If one or the other is pressed, the bitwise AND will be zero, so throttle should be set.
-  //    pwm_value = PWM_VALUE_DEBUG;
-  //    digitalWrite(GREEN_LED, HIGH);
-  //    motorSpin();
-  //  }
-
-  //  // Reading and Updating the Throttle the Throttle
-  //  if(loopCount >= loopNum) {
-  //    int analogReadValue = analogRead(THROTTLE); // Read the POT Value
-  //    int mapValue = map(analogReadValue, 1550, 4096, 0, 255); // Map the pot value, assuming that the range is between 1550-4096 (12-bit value) to 0-255
-  //
-  //    // MIN and MAX Check
-  //    if (mapValue <= MIN_PWM_VALUE) {
-  //      mapValue == MIN_PWM_VALUE;
-  //    }
-  //    if (mapValue > MAX_PWM_VALUE) {
-  //      pwm_value = MAX_PWM_VALUE;
-  //    }
-  //    else {
-  //      pwm_value = (mapValue + pwm_value) / 2; // The PWM value keeps increasing at a rate of 2
-  //    }
-  //    loopCount=0;
-  //  }
-  //  //If you havn't reached loopNum then increment and continue to the next loop
-  //  else{
-  //    loopCount++;
-  //  }
+  //pwm_value = readThrottle();
 
 } // loop() END
 
-
-
-/*
-   SPI SETUP FUNCTION
-*/
-
-
-void DRV8323_SPI_Setup(void) {
-  delay(200); // Why is this here?
-  SPI.begin();
-  SPI.setClockDivider(SPI_CLOCK_DIV64);
-  SPI.setBitOrder(MSBFIRST);
-  SPI.setDataMode(SPI_MODE1);
-  SPI.setModule(0);
-
-  // Writing to Control Register
-  // Selecting 3xPWM Mode Function, using controller driver control register:
-  // BIT#  15  14 13 12 11 10    09        08            07    06 05     04    03        02    01   00
-  // Name  R/W < Addr3-0 > res chgpump gatedrivevolt overtemp pwmMode  pwmcom 1pwmdir  coast brake clearfault
-  //       W=0 (MSB first)
-  // Value  0  Ctrl=0010    0     0         0             0   3xPWM=01    0     0         0     0    0
-  // This corresponds to a 16-bit value to put motor controller into 3xPWM mode: 0(001 0)000 0(01)0 0000 => 0x1020
-  // This is actually executed as single-byte writes of 0x10 then 0x20
-
-  digitalWrite(CS_DRV, LOW); //Pull slave select low to begin the transaction
-  delayMicroseconds(2);
-  SPI.transfer(0x10);
-  byte return_value = SPI.transfer(0x20);
-  Serial.println(return_value, HEX);
-  Serial.println();
-  delayMicroseconds(2);
-  digitalWrite(CS_DRV, HIGH); //Pull slave select high to end the transaction
-
-  SPI.end();
+//Throttle Function
+int readThrottle(void){
+    float rawThrottle = analogRead(THROTTLE);
+    rawThrottle = 0.0 + ((255.0 - 0.0) / (4096.0 - 1200.0)) * (rawThrottle - 1200.0);
+    return (int) rawThrottle;
 }
-
 
 /*
    MOTOR SPIN FUNCTION
@@ -386,7 +296,7 @@ void coast (void) {
 
 /*
    INITMOTORSTATE FUNCTION
-     - Checks the halls and sets the state byte.
+     - Checks the halls and sets the state byte at the time of startup.
 */
 void initMotorState() {
   state = B000;
